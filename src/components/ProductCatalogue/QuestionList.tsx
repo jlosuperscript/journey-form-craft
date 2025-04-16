@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Plus, Settings } from 'lucide-react';
+import { Edit, Trash2, Plus, Settings, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import ConditionalLogicDialog from './ConditionalLogicDialog';
 import EditQuestionDialog from './EditQuestionDialog';
@@ -30,6 +30,7 @@ type ConditionalLogic = {
   question_id: string;
   dependent_question_id: string;
   dependent_answer_value: string;
+  not_condition?: boolean;
   dependent_question?: Question;
 };
 
@@ -147,6 +148,40 @@ const QuestionList: React.FC = () => {
     setIsEditDialogOpen(true);
   };
 
+  const handleMoveQuestion = async (questionId: string, direction: 'up' | 'down') => {
+    const currentIndex = questions.findIndex(q => q.id === questionId);
+    if (
+      (direction === 'up' && currentIndex === 0) || 
+      (direction === 'down' && currentIndex === questions.length - 1)
+    ) {
+      return; // Can't move further in this direction
+    }
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const targetQuestion = questions[targetIndex];
+    const currentQuestion = questions[currentIndex];
+    
+    // Swap order_index values
+    const { error: error1 } = await supabase
+      .from('questions')
+      .update({ order_index: targetQuestion.order_index })
+      .eq('id', currentQuestion.id);
+      
+    const { error: error2 } = await supabase
+      .from('questions')
+      .update({ order_index: currentQuestion.order_index })
+      .eq('id', targetQuestion.id);
+    
+    if (error1 || error2) {
+      console.error('Error reordering questions:', error1 || error2);
+      toast.error('Error reordering questions');
+      return;
+    }
+    
+    toast.success('Questions reordered successfully');
+    fetchQuestions();
+  };
+
   const getQuestionTypeLabel = (type: string) => {
     switch (type) {
       case 'text': return 'Text';
@@ -174,6 +209,26 @@ const QuestionList: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-2">
+              <div className="flex flex-col">
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => handleMoveQuestion(question.id, 'up')}
+                  disabled={questions.indexOf(question) === 0}
+                  title="Move Up"
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => handleMoveQuestion(question.id, 'down')}
+                  disabled={questions.indexOf(question) === questions.length - 1}
+                  title="Move Down"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </div>
               <Button 
                 variant="outline" 
                 size="icon"
@@ -222,7 +277,11 @@ const QuestionList: React.FC = () => {
                       <span>Show only when </span>
                       <span className="font-medium">{logic.dependent_question?.text}</span>
                       <span> is </span>
-                      <span className="font-medium">{logic.dependent_answer_value}</span>
+                      {logic.not_condition ? (
+                        <span><strong>not</strong> "{logic.dependent_answer_value}"</span>
+                      ) : (
+                        <span className="font-medium">"{logic.dependent_answer_value}"</span>
+                      )}
                     </div>
                   ))}
                 </div>

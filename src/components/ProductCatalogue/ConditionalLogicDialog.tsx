@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type Question = {
   id: string;
@@ -40,6 +41,7 @@ type ConditionalLogic = {
   question_id: string;
   dependent_question_id: string;
   dependent_answer_value: string;
+  not_condition?: boolean;
   dependent_question?: Question;
 };
 
@@ -64,6 +66,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
 }) => {
   const [selectedDependentQuestion, setSelectedDependentQuestion] = useState('');
   const [selectedAnswerValue, setSelectedAnswerValue] = useState('');
+  const [isNotCondition, setIsNotCondition] = useState(false);
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
@@ -86,7 +89,8 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       .insert({
         question_id: question.id,
         dependent_question_id: selectedDependentQuestion,
-        dependent_answer_value: selectedAnswerValue
+        dependent_answer_value: selectedAnswerValue,
+        not_condition: isNotCondition
       });
 
     if (error) {
@@ -119,6 +123,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const resetForm = () => {
     setSelectedDependentQuestion('');
     setSelectedAnswerValue('');
+    setIsNotCondition(false);
   };
 
   const getAnswerOptionsForQuestion = (questionId: string) => {
@@ -155,7 +160,11 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
                     Show when{" "}
                     <span className="font-medium">{questions.find(q => q.id === logic.dependent_question_id)?.text}</span>
                     {" "}is{" "}
-                    <span className="font-medium">{logic.dependent_answer_value}</span>
+                    {logic.not_condition ? (
+                      <span><strong>not</strong> "{logic.dependent_answer_value}"</span>
+                    ) : (
+                      <span className="font-medium">"{logic.dependent_answer_value}"</span>
+                    )}
                   </span>
                   <Button 
                     type="button" 
@@ -216,6 +225,20 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
                   </Select>
                 </div>
               )}
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="not-condition" 
+                  checked={isNotCondition}
+                  onCheckedChange={(checked) => setIsNotCondition(checked === true)}
+                />
+                <label 
+                  htmlFor="not-condition" 
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  NOT condition (show when answer is NOT this value)
+                </label>
+              </div>
 
               <div className="flex justify-end space-x-2 pt-2">
                 <Button 
