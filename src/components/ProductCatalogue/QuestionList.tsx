@@ -78,27 +78,44 @@ const QuestionList: React.FC = () => {
     });
     setAnswerOptions(optionsByQuestion);
 
-    // Fetch conditional logic
+    // Fetch conditional logic - Fix is here
     const { data: logicData, error: logicError } = await supabase
       .from('conditional_logic')
-      .select(`
-        *,
-        dependent_question:dependent_question_id(id, text, type)
-      `);
+      .select('*');
 
     if (logicError) {
       console.error('Error fetching conditional logic:', logicError);
       return;
     }
 
-    // Group logic by question_id
+    // Now fetch dependent questions separately
     const logicByQuestion: {[key: string]: ConditionalLogic[]} = {};
-    logicData?.forEach(logic => {
+    
+    for (const logic of logicData || []) {
+      // Get dependent question details
+      const { data: dependentQuestion, error: dependentError } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('id', logic.dependent_question_id)
+        .single();
+      
+      if (dependentError) {
+        console.error('Error fetching dependent question:', dependentError);
+        continue;
+      }
+
+      // Add the logic with the dependent question
+      const logicWithDependent: ConditionalLogic = {
+        ...logic,
+        dependent_question: dependentQuestion
+      };
+
       if (!logicByQuestion[logic.question_id]) {
         logicByQuestion[logic.question_id] = [];
       }
-      logicByQuestion[logic.question_id].push(logic);
-    });
+      logicByQuestion[logic.question_id].push(logicWithDependent);
+    }
+    
     setConditionalLogic(logicByQuestion);
   };
 
