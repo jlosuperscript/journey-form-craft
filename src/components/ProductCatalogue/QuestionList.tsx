@@ -3,7 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Plus, Settings } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import ConditionalLogicDialog from './ConditionalLogicDialog';
+import { toast } from 'sonner';
 
 type Question = {
   id: string;
@@ -13,25 +16,90 @@ type Question = {
   order_index: number;
 };
 
+type AnswerOption = {
+  id: string;
+  question_id: string;
+  text: string;
+  value: string;
+  order_index: number;
+};
+
+type ConditionalLogic = {
+  id: string;
+  question_id: string;
+  dependent_question_id: string;
+  dependent_answer_value: string;
+  dependent_question?: Question;
+};
+
 const QuestionList: React.FC = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [answerOptions, setAnswerOptions] = useState<{[key: string]: AnswerOption[]}>({});
+  const [conditionalLogic, setConditionalLogic] = useState<{[key: string]: ConditionalLogic[]}>({});
+  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+  const [isLogicDialogOpen, setIsLogicDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchQuestions();
   }, []);
 
   const fetchQuestions = async () => {
-    const { data, error } = await supabase
+    // Fetch all questions
+    const { data: questionsData, error: questionsError } = await supabase
       .from('questions')
       .select('*')
       .order('order_index');
 
-    if (error) {
-      console.error('Error fetching questions:', error);
+    if (questionsError) {
+      console.error('Error fetching questions:', questionsError);
       return;
     }
 
-    setQuestions(data || []);
+    setQuestions(questionsData || []);
+
+    // Fetch all answer options
+    const { data: optionsData, error: optionsError } = await supabase
+      .from('answer_options')
+      .select('*')
+      .order('order_index');
+
+    if (optionsError) {
+      console.error('Error fetching answer options:', optionsError);
+      return;
+    }
+
+    // Group options by question_id
+    const optionsByQuestion: {[key: string]: AnswerOption[]} = {};
+    optionsData?.forEach(option => {
+      if (!optionsByQuestion[option.question_id]) {
+        optionsByQuestion[option.question_id] = [];
+      }
+      optionsByQuestion[option.question_id].push(option);
+    });
+    setAnswerOptions(optionsByQuestion);
+
+    // Fetch conditional logic
+    const { data: logicData, error: logicError } = await supabase
+      .from('conditional_logic')
+      .select(`
+        *,
+        dependent_question:dependent_question_id(id, text, type)
+      `);
+
+    if (logicError) {
+      console.error('Error fetching conditional logic:', logicError);
+      return;
+    }
+
+    // Group logic by question_id
+    const logicByQuestion: {[key: string]: ConditionalLogic[]} = {};
+    logicData?.forEach(logic => {
+      if (!logicByQuestion[logic.question_id]) {
+        logicByQuestion[logic.question_id] = [];
+      }
+      logicByQuestion[logic.question_id].push(logic);
+    });
+    setConditionalLogic(logicByQuestion);
   };
 
   const handleDeleteQuestion = async (id: string) => {
@@ -42,10 +110,28 @@ const QuestionList: React.FC = () => {
 
     if (error) {
       console.error('Error deleting question:', error);
+      toast.error('Error deleting question');
       return;
     }
 
+    toast.success('Question deleted successfully');
     fetchQuestions();
+  };
+
+  const handleOpenLogicDialog = (question: Question) => {
+    setSelectedQuestion(question);
+    setIsLogicDialogOpen(true);
+  };
+
+  const getQuestionTypeLabel = (type: string) => {
+    switch (type) {
+      case 'text': return 'Text';
+      case 'select': return 'Dropdown Select';
+      case 'multiple_choice': return 'Multiple Choice';
+      case 'boolean': return 'Yes/No';
+      case 'number': return 'Number';
+      default: return type;
+    }
   };
 
   return (
@@ -53,8 +139,25 @@ const QuestionList: React.FC = () => {
       {questions.map((question) => (
         <Card key={question.id} className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>{question.text}</CardTitle>
+            <div>
+              <CardTitle>{question.text}</CardTitle>
+              <div className="flex mt-2 gap-2">
+                <Badge variant="outline">{getQuestionTypeLabel(question.type)}</Badge>
+                {question.required && <Badge>Required</Badge>}
+                {conditionalLogic[question.id] && conditionalLogic[question.id].length > 0 && (
+                  <Badge variant="secondary">Conditional</Badge>
+                )}
+              </div>
+            </div>
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => handleOpenLogicDialog(question)}
+                title="Conditional Logic"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
               <Button variant="outline" size="icon">
                 <Edit className="h-4 w-4" />
               </Button>
@@ -68,11 +171,49 @@ const QuestionList: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <p>Type: {question.type}</p>
-            <p>Required: {question.required ? 'Yes' : 'No'}</p>
+            {(question.type === 'select' || question.type === 'multiple_choice') && (
+              <div className="mt-2">
+                <h4 className="text-sm font-medium mb-1">Answer Options:</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {answerOptions[question.id]?.map((option) => (
+                    <div key={option.id} className="text-sm p-2 bg-gray-100 rounded-md">
+                      {option.text}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {conditionalLogic[question.id] && conditionalLogic[question.id].length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <h4 className="text-sm font-medium mb-1">Conditional Logic:</h4>
+                <div className="space-y-2">
+                  {conditionalLogic[question.id].map((logic) => (
+                    <div key={logic.id} className="text-sm">
+                      <span>Show only when </span>
+                      <span className="font-medium">{logic.dependent_question?.text}</span>
+                      <span> is </span>
+                      <span className="font-medium">{logic.dependent_answer_value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}
+
+      {selectedQuestion && (
+        <ConditionalLogicDialog
+          open={isLogicDialogOpen}
+          onOpenChange={setIsLogicDialogOpen}
+          question={selectedQuestion}
+          questions={questions}
+          answerOptions={answerOptions}
+          existingLogic={conditionalLogic[selectedQuestion.id] || []}
+          onLogicUpdated={fetchQuestions}
+        />
+      )}
     </div>
   );
 };

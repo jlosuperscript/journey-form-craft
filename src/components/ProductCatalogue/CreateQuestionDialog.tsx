@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Plus, Trash2 } from 'lucide-react';
 
 type CreateQuestionDialogProps = {
   open: boolean;
@@ -32,6 +33,10 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
   const [questionText, setQuestionText] = useState('');
   const [questionType, setQuestionType] = useState('');
   const [isRequired, setIsRequired] = useState(false);
+  const [answerOptions, setAnswerOptions] = useState<{text: string, value: string}[]>([]);
+  const [newOptionText, setNewOptionText] = useState('');
+  
+  const needsOptions = questionType === 'select' || questionType === 'multiple_choice';
 
   const handleSubmit = async () => {
     if (!questionText || !questionType) {
@@ -39,19 +44,48 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
       return;
     }
 
-    const { data, error } = await supabase
+    if (needsOptions && answerOptions.length === 0) {
+      toast.error('Please add at least one answer option');
+      return;
+    }
+
+    // Insert question
+    const { data: questionData, error: questionError } = await supabase
       .from('questions')
       .insert({
         text: questionText,
         type: questionType,
         required: isRequired,
         order_index: 0 // You might want to implement a more sophisticated ordering
-      });
+      })
+      .select();
 
-    if (error) {
+    if (questionError) {
       toast.error('Failed to create question');
-      console.error(error);
+      console.error(questionError);
       return;
+    }
+
+    // Insert answer options if needed
+    if (needsOptions && questionData && questionData.length > 0) {
+      const questionId = questionData[0].id;
+      
+      const optionsToInsert = answerOptions.map((option, index) => ({
+        question_id: questionId,
+        text: option.text,
+        value: option.value,
+        order_index: index
+      }));
+
+      const { error: optionsError } = await supabase
+        .from('answer_options')
+        .insert(optionsToInsert);
+
+      if (optionsError) {
+        toast.error('Failed to create answer options');
+        console.error(optionsError);
+        return;
+      }
     }
 
     toast.success('Question created successfully');
@@ -63,6 +97,25 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
     setQuestionText('');
     setQuestionType('');
     setIsRequired(false);
+    setAnswerOptions([]);
+    setNewOptionText('');
+  };
+
+  const addAnswerOption = () => {
+    if (!newOptionText.trim()) return;
+    
+    setAnswerOptions([
+      ...answerOptions, 
+      { 
+        text: newOptionText, 
+        value: newOptionText.toLowerCase().replace(/\s+/g, '_') 
+      }
+    ]);
+    setNewOptionText('');
+  };
+
+  const removeAnswerOption = (index: number) => {
+    setAnswerOptions(answerOptions.filter((_, i) => i !== index));
   };
 
   return (
@@ -96,12 +149,50 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="text">Text</SelectItem>
-                <SelectItem value="select">Multiple Choice</SelectItem>
+                <SelectItem value="select">Dropdown Select</SelectItem>
+                <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
                 <SelectItem value="boolean">Yes/No</SelectItem>
                 <SelectItem value="number">Number</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {needsOptions && (
+            <div className="space-y-2">
+              <label className="block">Answer Options</label>
+              <div className="flex space-x-2">
+                <Input 
+                  value={newOptionText}
+                  onChange={(e) => setNewOptionText(e.target.value)}
+                  placeholder="Add answer option"
+                  className="flex-1"
+                />
+                <Button 
+                  type="button" 
+                  onClick={addAnswerOption}
+                  size="icon"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {answerOptions.map((option, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 border rounded-md">
+                    <span>{option.text}</span>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => removeAnswerOption(index)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center space-x-2">
             <Checkbox 
