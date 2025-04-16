@@ -98,6 +98,7 @@ export type Database = {
           id: string
           order_index: number
           required: boolean | null
+          section_id: string | null
           short_id: string | null
           text: string
           type: string
@@ -108,6 +109,7 @@ export type Database = {
           id?: string
           order_index: number
           required?: boolean | null
+          section_id?: string | null
           short_id?: string | null
           text: string
           type: string
@@ -118,9 +120,42 @@ export type Database = {
           id?: string
           order_index?: number
           required?: boolean | null
+          section_id?: string | null
           short_id?: string | null
           text?: string
           type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sections: {
+        Row: {
+          created_at: string
+          id: string
+          order_index: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          order_index: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_index?: number
+          title?: string
           updated_at?: string
         }
         Relationships: []

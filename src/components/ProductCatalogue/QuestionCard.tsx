@@ -2,41 +2,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Settings, ChevronUp, ChevronDown, MoreVertical } from 'lucide-react';
+import { Edit, Trash2, Settings, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-type Question = {
-  id: string;
-  text: string;
-  type: string;
-  required: boolean;
-  order_index: number;
-  short_id?: string;
-  section_id?: string;
-};
-
-type AnswerOption = {
-  id: string;
-  question_id: string;
-  text: string;
-  value: string;
-  order_index: number;
-};
-
-type ConditionalLogic = {
-  id: string;
-  question_id: string;
-  dependent_question_id: string;
-  dependent_answer_value: string;
-  not_condition?: boolean;
-  dependent_question?: Question;
-};
+import { Question, AnswerOption, ConditionalLogic } from '@/hooks/useQuestions';
 
 type QuestionCardProps = {
   question: Question;

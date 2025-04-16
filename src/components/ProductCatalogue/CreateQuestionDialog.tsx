@@ -151,20 +151,8 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
     }
 
     // Get the max order_index to place the new section at the end
-    const { data: existingSections, error: fetchError } = await supabase
-      .from('sections')
-      .select('order_index')
-      .order('order_index', { ascending: false })
-      .limit(1);
-
-    if (fetchError) {
-      toast.error('Failed to prepare for section creation');
-      console.error(fetchError);
-      return;
-    }
-
-    const highestOrderIndex = existingSections && existingSections.length > 0 
-      ? existingSections[0].order_index 
+    const maxOrderIndex = sections.length > 0 
+      ? Math.max(...sections.map(s => s.order_index)) 
       : -1;
 
     const newSectionId = uuidv4();
@@ -174,7 +162,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
       .insert({
         id: newSectionId,
         title: newSectionTitle,
-        order_index: highestOrderIndex + 1
+        order_index: maxOrderIndex + 1
       })
       .select();
 
