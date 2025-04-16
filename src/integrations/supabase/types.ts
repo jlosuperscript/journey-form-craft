@@ -98,6 +98,7 @@ export type Database = {
           id: string
           order_index: number
           required: boolean | null
+          short_id: string | null
           text: string
           type: string
           updated_at: string
@@ -107,6 +108,7 @@ export type Database = {
           id?: string
           order_index: number
           required?: boolean | null
+          short_id?: string | null
           text: string
           type: string
           updated_at?: string
@@ -116,6 +118,7 @@ export type Database = {
           id?: string
           order_index?: number
           required?: boolean | null
+          short_id?: string | null
           text?: string
           type?: string
           updated_at?: string
