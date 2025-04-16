@@ -145,12 +145,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                 <div key={logic.id} className="text-sm">
                   <span>Show only when </span>
                   <span className="font-medium">{logic.dependent_question?.text}</span>
-                  <span> is </span>
-                  {logic.not_condition ? (
-                    <span><strong>not</strong> "{logic.dependent_answer_value}"</span>
-                  ) : (
-                    <span className="font-medium">"{logic.dependent_answer_value}"</span>
-                  )}
+                  <span> </span>
+                  <span className="font-medium">
+                    {logic.not_condition ? "is not" : "is"}
+                  </span>
+                  <span> </span>
+                  <span className="font-medium">"{logic.dependent_answer_value}"</span>
                 </div>
               ))}
             </div>

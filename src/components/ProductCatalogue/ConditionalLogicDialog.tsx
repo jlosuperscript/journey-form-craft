@@ -18,7 +18,6 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 
 type Question = {
   id: string;
@@ -66,7 +65,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
 }) => {
   const [selectedDependentQuestion, setSelectedDependentQuestion] = useState('');
   const [selectedAnswerValue, setSelectedAnswerValue] = useState('');
-  const [isNotCondition, setIsNotCondition] = useState(false);
+  const [conditionType, setConditionType] = useState<'is'|'is_not'>('is');
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
@@ -90,7 +89,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
         question_id: question.id,
         dependent_question_id: selectedDependentQuestion,
         dependent_answer_value: selectedAnswerValue,
-        not_condition: isNotCondition
+        not_condition: conditionType === 'is_not'
       });
 
     if (error) {
@@ -123,7 +122,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const resetForm = () => {
     setSelectedDependentQuestion('');
     setSelectedAnswerValue('');
-    setIsNotCondition(false);
+    setConditionType('is');
   };
 
   const getAnswerOptionsForQuestion = (questionId: string) => {
@@ -159,12 +158,12 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
                   <span className="text-sm">
                     Show when{" "}
                     <span className="font-medium">{questions.find(q => q.id === logic.dependent_question_id)?.text}</span>
-                    {" "}is{" "}
-                    {logic.not_condition ? (
-                      <span><strong>not</strong> "{logic.dependent_answer_value}"</span>
-                    ) : (
-                      <span className="font-medium">"{logic.dependent_answer_value}"</span>
-                    )}
+                    {" "}
+                    <span className="font-medium">
+                      {logic.not_condition ? "is not" : "is"}
+                    </span>
+                    {" "}
+                    <span className="font-medium">"{logic.dependent_answer_value}"</span>
                   </span>
                   <Button 
                     type="button" 
@@ -206,39 +205,43 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
               </div>
 
               {selectedDependentQuestion && (
-                <div>
-                  <label className="block mb-2 text-sm">Answer Value</label>
-                  <Select 
-                    value={selectedAnswerValue} 
-                    onValueChange={setSelectedAnswerValue}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an answer value" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAnswerOptionsForQuestion(selectedDependentQuestion).map((option) => (
-                        <SelectItem key={option.id} value={option.value}>
-                          {option.text}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <>
+                  <div>
+                    <label className="block mb-2 text-sm">Condition</label>
+                    <Select 
+                      value={conditionType} 
+                      onValueChange={(value) => setConditionType(value as 'is' | 'is_not')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select condition type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="is">is</SelectItem>
+                        <SelectItem value="is_not">is not</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 text-sm">Answer Value</label>
+                    <Select 
+                      value={selectedAnswerValue} 
+                      onValueChange={setSelectedAnswerValue}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an answer value" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAnswerOptionsForQuestion(selectedDependentQuestion).map((option) => (
+                          <SelectItem key={option.id} value={option.value}>
+                            {option.text}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
               )}
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="not-condition" 
-                  checked={isNotCondition}
-                  onCheckedChange={(checked) => setIsNotCondition(checked === true)}
-                />
-                <label 
-                  htmlFor="not-condition" 
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  NOT condition (show when answer is NOT this value)
-                </label>
-              </div>
 
               <div className="flex justify-end space-x-2 pt-2">
                 <Button 
