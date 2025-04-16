@@ -15,11 +15,12 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Upload } from 'lucide-react';
 
 type Question = {
   id: string;
@@ -57,6 +58,8 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
   const [isRequired, setIsRequired] = useState(false);
   const [options, setOptions] = useState<{text: string, value: string, id?: string}[]>([]);
   const [newOptionText, setNewOptionText] = useState('');
+  const [bulkOptions, setBulkOptions] = useState('');
+  const [showBulkInput, setShowBulkInput] = useState(false);
   
   useEffect(() => {
     if (question) {
@@ -180,6 +183,27 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
     setOptions(options.filter((_, i) => i !== index));
   };
 
+  const handleBulkOptionsAdd = () => {
+    if (!bulkOptions.trim()) return;
+    
+    // Split by new lines to create multiple options
+    const optionsArray = bulkOptions
+      .split('\n')
+      .filter(line => line.trim() !== '')
+      .map(line => ({
+        text: line.trim(),
+        value: line.trim().toLowerCase().replace(/\s+/g, '_')
+      }));
+    
+    setOptions([...options, ...optionsArray]);
+    setBulkOptions('');
+    setShowBulkInput(false);
+  };
+
+  const toggleBulkInput = () => {
+    setShowBulkInput(!showBulkInput);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -221,38 +245,74 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
 
           {needsOptions && (
             <div className="space-y-2">
-              <label className="block">Answer Options</label>
-              <div className="flex space-x-2">
-                <Input 
-                  value={newOptionText}
-                  onChange={(e) => setNewOptionText(e.target.value)}
-                  placeholder="Add answer option"
-                  className="flex-1"
-                />
+              <div className="flex items-center justify-between">
+                <label className="block">Answer Options</label>
                 <Button 
                   type="button" 
-                  onClick={addAnswerOption}
-                  size="icon"
+                  variant="outline" 
+                  size="sm"
+                  onClick={toggleBulkInput}
                 >
-                  <Plus className="h-4 w-4" />
+                  {showBulkInput ? "Add Single Option" : "Add Multiple Options"}
                 </Button>
               </div>
               
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {options.map((option, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 border rounded-md">
-                    <span>{option.text}</span>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => removeAnswerOption(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
+              {!showBulkInput ? (
+                <div className="flex space-x-2">
+                  <Input 
+                    value={newOptionText}
+                    onChange={(e) => setNewOptionText(e.target.value)}
+                    placeholder="Add answer option"
+                    className="flex-1"
+                  />
+                  <Button 
+                    type="button" 
+                    onClick={addAnswerOption}
+                    size="icon"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Textarea 
+                    value={bulkOptions}
+                    onChange={(e) => setBulkOptions(e.target.value)}
+                    placeholder="Enter multiple options, one per line"
+                    className="min-h-[100px]"
+                  />
+                  <Button 
+                    type="button" 
+                    onClick={handleBulkOptionsAdd}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Add All Options
+                  </Button>
+                </div>
+              )}
+              
+              {options.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm font-medium mb-2">Added Options ({options.length})</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {options.map((option, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 border rounded-md">
+                        <span>{option.text}</span>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => removeAnswerOption(index)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
