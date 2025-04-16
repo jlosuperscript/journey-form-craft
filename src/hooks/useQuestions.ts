@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import shortUUID from 'short-uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 export type Question = {
   id: string;
@@ -11,6 +12,13 @@ export type Question = {
   required: boolean;
   order_index: number;
   short_id?: string;
+  section_id?: string;
+};
+
+export type Section = {
+  id: string;
+  title: string;
+  order_index: number;
 };
 
 export type AnswerOption = {
@@ -32,6 +40,7 @@ export type ConditionalLogic = {
 
 export const useQuestions = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [answerOptions, setAnswerOptions] = useState<{[key: string]: AnswerOption[]}>({});
   const [conditionalLogic, setConditionalLogic] = useState<{[key: string]: ConditionalLogic[]}>({});
   const [loading, setLoading] = useState(true);
@@ -41,9 +50,28 @@ export const useQuestions = () => {
     return translator.new().substring(0, 5).toUpperCase();
   };
 
+  const fetchSections = async () => {
+    const { data, error } = await supabase
+      .from('sections')
+      .select('*')
+      .order('order_index');
+
+    if (error) {
+      console.error('Error fetching sections:', error);
+      toast.error('Failed to load sections');
+      return [];
+    }
+
+    setSections(data || []);
+    return data || [];
+  };
+
   const fetchQuestions = async () => {
     setLoading(true);
     try {
+      // Fetch sections first
+      await fetchSections();
+      
       // Fetch all questions
       const { data: questionsData, error: questionsError } = await supabase
         .from('questions')
@@ -147,6 +175,32 @@ export const useQuestions = () => {
     }
   };
 
+  const createSection = async (title: string) => {
+    // Get the max order_index to place the new section at the end
+    const maxOrderIndex = sections.length > 0 
+      ? Math.max(...sections.map(s => s.order_index)) 
+      : -1;
+    
+    const { data, error } = await supabase
+      .from('sections')
+      .insert({
+        id: uuidv4(),
+        title,
+        order_index: maxOrderIndex + 1
+      })
+      .select();
+
+    if (error) {
+      console.error('Error creating section:', error);
+      toast.error('Failed to create section');
+      return null;
+    }
+
+    toast.success('Section created successfully');
+    await fetchSections();
+    return data?.[0];
+  };
+
   const handleDeleteQuestion = async (id: string) => {
     const { error } = await supabase
       .from('questions')
@@ -197,16 +251,14 @@ export const useQuestions = () => {
     fetchQuestions();
   };
 
-  useEffect(() => {
-    fetchQuestions();
-  }, []);
-
   return {
     questions,
+    sections,
     answerOptions,
     conditionalLogic,
     loading,
     fetchQuestions,
+    createSection,
     handleDeleteQuestion,
     handleMoveQuestion,
     generateShortId

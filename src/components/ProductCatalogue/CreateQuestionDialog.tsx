@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -32,25 +32,41 @@ import {
 } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
+import { Section } from '@/hooks/useQuestions';
+import { v4 as uuidv4 } from 'uuid';
 
 type CreateQuestionDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  sections: Section[];
+  onQuestionCreated: () => void;
 };
 
 const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({ 
   open, 
-  onOpenChange 
+  onOpenChange,
+  sections,
+  onQuestionCreated
 }) => {
   const [questionText, setQuestionText] = useState('');
   const [questionType, setQuestionType] = useState('');
-  const [isRequired, setIsRequired] = useState(false);
+  const [isRequired, setIsRequired] = useState(true); // Set required to true by default
+  const [sectionId, setSectionId] = useState<string | undefined>(undefined);
   const [answerOptions, setAnswerOptions] = useState<{text: string, value: string}[]>([]);
   const [newOptionText, setNewOptionText] = useState('');
   const [bulkOptions, setBulkOptions] = useState('');
   const [showBulkInput, setShowBulkInput] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState('');
+  const [showNewSectionInput, setShowNewSectionInput] = useState(false);
   
   const needsOptions = questionType === 'select' || questionType === 'multiple_choice';
+
+  // Reset form when dialog is opened
+  useEffect(() => {
+    if (open) {
+      resetForm();
+    }
+  }, [open]);
 
   const handleSubmit = async () => {
     if (!questionText || !questionType) {
@@ -63,14 +79,36 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
       return;
     }
 
+    // Get the highest order_index to place this question at the end
+    const { data: existingQuestions, error: fetchError } = await supabase
+      .from('questions')
+      .select('order_index')
+      .order('order_index', { ascending: false })
+      .limit(1);
+
+    if (fetchError) {
+      toast.error('Failed to prepare for question creation');
+      console.error(fetchError);
+      return;
+    }
+
+    const highestOrderIndex = existingQuestions && existingQuestions.length > 0 
+      ? existingQuestions[0].order_index 
+      : -1;
+
+    // Generate a new question ID
+    const questionId = uuidv4();
+
     // Insert question
     const { data: questionData, error: questionError } = await supabase
       .from('questions')
       .insert({
+        id: questionId,
         text: questionText,
         type: questionType,
         required: isRequired,
-        order_index: 0 // You might want to implement a more sophisticated ordering
+        order_index: highestOrderIndex + 1,
+        section_id: sectionId
       })
       .select();
 
@@ -81,9 +119,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
     }
 
     // Insert answer options if needed
-    if (needsOptions && questionData && questionData.length > 0) {
-      const questionId = questionData[0].id;
-      
+    if (needsOptions) {
       const optionsToInsert = answerOptions.map((option, index) => ({
         question_id: questionId,
         text: option.text,
@@ -105,16 +141,67 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
     toast.success('Question created successfully');
     resetForm();
     onOpenChange(false);
+    onQuestionCreated(); // Call the callback to refresh questions
+  };
+
+  const createNewSection = async () => {
+    if (!newSectionTitle.trim()) {
+      toast.error('Section title cannot be empty');
+      return;
+    }
+
+    // Get the max order_index to place the new section at the end
+    const { data: existingSections, error: fetchError } = await supabase
+      .from('sections')
+      .select('order_index')
+      .order('order_index', { ascending: false })
+      .limit(1);
+
+    if (fetchError) {
+      toast.error('Failed to prepare for section creation');
+      console.error(fetchError);
+      return;
+    }
+
+    const highestOrderIndex = existingSections && existingSections.length > 0 
+      ? existingSections[0].order_index 
+      : -1;
+
+    const newSectionId = uuidv4();
+    
+    const { data, error } = await supabase
+      .from('sections')
+      .insert({
+        id: newSectionId,
+        title: newSectionTitle,
+        order_index: highestOrderIndex + 1
+      })
+      .select();
+
+    if (error) {
+      toast.error('Failed to create section');
+      console.error(error);
+      return;
+    }
+
+    toast.success('Section created successfully');
+    setSectionId(newSectionId);
+    setShowNewSectionInput(false);
+    setNewSectionTitle('');
+    onQuestionCreated(); // Refresh sections
   };
 
   const resetForm = () => {
     setQuestionText('');
     setQuestionType('');
-    setIsRequired(false);
+    setIsRequired(true); // Reset to true (default)
+    setSectionId(undefined);
     setAnswerOptions([]);
     setNewOptionText('');
     setBulkOptions('');
     setShowBulkInput(false);
+    setNewSectionTitle('');
+    setShowNewSectionInput(false);
   };
 
   const addAnswerOption = () => {
@@ -155,6 +242,10 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
     setShowBulkInput(!showBulkInput);
   };
 
+  const toggleNewSectionInput = () => {
+    setShowNewSectionInput(!showNewSectionInput);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -193,6 +284,53 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
               </SelectContent>
             </Select>
           </div>
+
+          <div>
+            <label className="block mb-2">Section</label>
+            <div className="flex space-x-2">
+              <Select 
+                value={sectionId} 
+                onValueChange={setSectionId}
+                disabled={showNewSectionInput}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select a section (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Section</SelectItem>
+                  {sections.map(section => (
+                    <SelectItem key={section.id} value={section.id}>
+                      {section.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={toggleNewSectionInput}
+              >
+                {showNewSectionInput ? "Cancel" : "New Section"}
+              </Button>
+            </div>
+          </div>
+
+          {showNewSectionInput && (
+            <div className="flex space-x-2">
+              <Input 
+                value={newSectionTitle}
+                onChange={(e) => setNewSectionTitle(e.target.value)}
+                placeholder="Enter section title"
+                className="flex-1"
+              />
+              <Button 
+                type="button" 
+                onClick={createNewSection}
+              >
+                Create
+              </Button>
+            </div>
+          )}
 
           {needsOptions && (
             <div className="space-y-2">

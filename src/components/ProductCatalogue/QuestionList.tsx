@@ -5,10 +5,12 @@ import ConditionalLogicDialog from './ConditionalLogicDialog';
 import EditQuestionDialog from './EditQuestionDialog';
 import QuestionCard from './QuestionCard';
 import { useQuestions } from '@/hooks/useQuestions';
+import { Separator } from '@/components/ui/separator';
 
 const QuestionList: React.FC = () => {
   const {
     questions,
+    sections,
     answerOptions,
     conditionalLogic,
     loading,
@@ -31,6 +33,21 @@ const QuestionList: React.FC = () => {
     setIsEditDialogOpen(true);
   };
 
+  // Group questions by section
+  const questionsBySection: { [key: string]: any[] } = {};
+  const unsectionedQuestions: any[] = [];
+
+  questions.forEach(question => {
+    if (question.section_id && sections.some(s => s.id === question.section_id)) {
+      if (!questionsBySection[question.section_id]) {
+        questionsBySection[question.section_id] = [];
+      }
+      questionsBySection[question.section_id].push(question);
+    } else {
+      unsectionedQuestions.push(question);
+    }
+  });
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -45,22 +62,55 @@ const QuestionList: React.FC = () => {
     );
   }
 
+  const renderQuestionCard = (question: any, index: number, sectionQuestions: any[]) => (
+    <QuestionCard
+      key={question.id}
+      question={question}
+      answerOptions={answerOptions[question.id] || []}
+      conditionalLogic={conditionalLogic[question.id] || []}
+      onDelete={handleDeleteQuestion}
+      onOpenLogicDialog={handleOpenLogicDialog}
+      onOpenEditDialog={handleOpenEditDialog}
+      onMoveQuestion={handleMoveQuestion}
+      isFirst={index === 0}
+      isLast={index === sectionQuestions.length - 1}
+    />
+  );
+
   return (
-    <div className="space-y-4">
-      {questions.map((question, index) => (
-        <QuestionCard
-          key={question.id}
-          question={question}
-          answerOptions={answerOptions[question.id] || []}
-          conditionalLogic={conditionalLogic[question.id] || []}
-          onDelete={handleDeleteQuestion}
-          onOpenLogicDialog={handleOpenLogicDialog}
-          onOpenEditDialog={handleOpenEditDialog}
-          onMoveQuestion={handleMoveQuestion}
-          isFirst={index === 0}
-          isLast={index === questions.length - 1}
-        />
-      ))}
+    <div className="space-y-8">
+      {/* Render sectioned questions */}
+      {sections.map(section => {
+        const sectionQuestions = questionsBySection[section.id] || [];
+        if (sectionQuestions.length === 0) return null;
+        
+        return (
+          <div key={section.id} className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <h2 className="text-xl font-semibold">{section.title}</h2>
+              <Separator className="flex-1" />
+            </div>
+            {sectionQuestions.map((question, index) => 
+              renderQuestionCard(question, index, sectionQuestions)
+            )}
+          </div>
+        );
+      })}
+
+      {/* Render unsectioned questions */}
+      {unsectionedQuestions.length > 0 && (
+        <div className="space-y-4">
+          {sections.length > 0 && (
+            <div className="flex items-center space-x-2">
+              <h2 className="text-xl font-semibold">Other Questions</h2>
+              <Separator className="flex-1" />
+            </div>
+          )}
+          {unsectionedQuestions.map((question, index) => 
+            renderQuestionCard(question, index, unsectionedQuestions)
+          )}
+        </div>
+      )}
 
       {questions.length === 0 && (
         <div className="text-center p-8 border rounded-lg">

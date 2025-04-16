@@ -4,9 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Plus } from 'lucide-react';
 import QuestionList from '@/components/ProductCatalogue/QuestionList';
 import CreateQuestionDialog from '@/components/ProductCatalogue/CreateQuestionDialog';
+import { useQuestions } from '@/hooks/useQuestions';
 
 const ProductCatalogue: React.FC = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const { sections, fetchQuestions } = useQuestions();
+
+  const handleQuestionCreated = () => {
+    // Refresh questions immediately after creation
+    fetchQuestions();
+  };
 
   return (
     <div className="container mx-auto p-6">
@@ -26,6 +33,8 @@ const ProductCatalogue: React.FC = () => {
       <CreateQuestionDialog 
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
+        sections={sections}
+        onQuestionCreated={handleQuestionCreated}
       />
     </div>
   );

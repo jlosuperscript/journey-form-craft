@@ -18,6 +18,7 @@ type Question = {
   required: boolean;
   order_index: number;
   short_id?: string;
+  section_id?: string;
 };
 
 type AnswerOption = {
