@@ -53,6 +53,7 @@ export type Database = {
           dependent_answer_value: string
           dependent_question_id: string
           id: string
+          not_condition: boolean | null
           question_id: string
           updated_at: string
         }
@@ -61,6 +62,7 @@ export type Database = {
           dependent_answer_value: string
           dependent_question_id: string
           id?: string
+          not_condition?: boolean | null
           question_id: string
           updated_at?: string
         }
@@ -69,6 +71,7 @@ export type Database = {
           dependent_answer_value?: string
           dependent_question_id?: string
           id?: string
+          not_condition?: boolean | null
           question_id?: string
           updated_at?: string
         }
