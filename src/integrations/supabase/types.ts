@@ -9,7 +9,116 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      answer_options: {
+        Row: {
+          created_at: string
+          id: string
+          order_index: number
+          question_id: string
+          text: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_index: number
+          question_id: string
+          text: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_index?: number
+          question_id?: string
+          text?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "answer_options_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conditional_logic: {
+        Row: {
+          created_at: string
+          dependent_answer_value: string
+          dependent_question_id: string
+          id: string
+          question_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dependent_answer_value: string
+          dependent_question_id: string
+          id?: string
+          question_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dependent_answer_value?: string
+          dependent_question_id?: string
+          id?: string
+          question_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conditional_logic_dependent_question_id_fkey"
+            columns: ["dependent_question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conditional_logic_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      questions: {
+        Row: {
+          created_at: string
+          id: string
+          order_index: number
+          required: boolean | null
+          text: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_index: number
+          required?: boolean | null
+          text: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_index?: number
+          required?: boolean | null
+          text?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
