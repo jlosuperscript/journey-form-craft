@@ -285,7 +285,7 @@ const CreateQuestionDialog: React.FC<CreateQuestionDialogProps> = ({
                   <SelectValue placeholder="Select a section (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Section</SelectItem>
+                  <SelectItem value="no_section">No Section</SelectItem>
                   {sections.map(section => (
                     <SelectItem key={section.id} value={section.id}>
                       {section.title}

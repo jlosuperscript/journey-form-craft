@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
@@ -67,7 +66,6 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
       setQuestionType(question.type);
       setIsRequired(question.required);
       
-      // Format the answer options for the state
       if (answerOptions && answerOptions.length > 0) {
         setOptions(answerOptions.map(option => ({
           id: option.id,
@@ -95,7 +93,6 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
       return;
     }
 
-    // Update question
     const { error: questionError } = await supabase
       .from('questions')
       .update({
@@ -111,9 +108,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
       return;
     }
 
-    // Handle answer options if needed
     if (needsOptions) {
-      // Delete existing options that are not in the current list
       const existingOptionIds = options.filter(o => o.id).map(o => o.id);
       const { error: deleteError } = await supabase
         .from('answer_options')
@@ -125,12 +120,10 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
         console.error('Failed to delete removed options:', deleteError);
       }
 
-      // Update existing options and add new ones
       for (let i = 0; i < options.length; i++) {
         const option = options[i];
         
         if (option.id) {
-          // Update existing option
           const { error: updateError } = await supabase
             .from('answer_options')
             .update({
@@ -144,7 +137,6 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
             console.error('Failed to update option:', updateError);
           }
         } else {
-          // Insert new option
           const { error: insertError } = await supabase
             .from('answer_options')
             .insert({
@@ -186,7 +178,6 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
   const handleBulkOptionsAdd = () => {
     if (!bulkOptions.trim()) return;
     
-    // Split by new lines to create multiple options
     const optionsArray = bulkOptions
       .split('\n')
       .filter(line => line.trim() !== '')
