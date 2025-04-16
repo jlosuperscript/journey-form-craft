@@ -6,6 +6,9 @@ import EditQuestionDialog from './EditQuestionDialog';
 import QuestionCard from './QuestionCard';
 import { useQuestions } from '@/hooks/useQuestions';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
+import { Section } from '@/hooks/useQuestions';
 
 const QuestionList: React.FC = () => {
   const {
@@ -16,7 +19,8 @@ const QuestionList: React.FC = () => {
     loading,
     fetchQuestions,
     handleDeleteQuestion,
-    handleMoveQuestion
+    handleMoveQuestion,
+    handleMoveSection
   } = useQuestions();
   
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
@@ -62,7 +66,7 @@ const QuestionList: React.FC = () => {
     );
   }
 
-  const renderQuestionCard = (question: any, index: number, sectionQuestions: any[]) => (
+  const renderQuestionCard = (question: any, index: number, sectionQuestions: any[], sectionId?: string) => (
     <QuestionCard
       key={question.id}
       question={question}
@@ -74,24 +78,59 @@ const QuestionList: React.FC = () => {
       onMoveQuestion={handleMoveQuestion}
       isFirst={index === 0}
       isLast={index === sectionQuestions.length - 1}
+      sectionId={sectionId}
     />
   );
+
+  const sortedSections = [...sections].sort((a, b) => a.order_index - b.order_index);
 
   return (
     <div className="space-y-8">
       {/* Render sectioned questions */}
-      {sections.map(section => {
+      {sortedSections.map((section, sectionIndex) => {
         const sectionQuestions = questionsBySection[section.id] || [];
-        if (sectionQuestions.length === 0) return null;
+        const isFirstSection = sectionIndex === 0;
+        const isLastSection = sectionIndex === sortedSections.length - 1;
         
         return (
-          <div key={section.id} className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <h2 className="text-xl font-semibold">{section.title}</h2>
-              <Separator className="flex-1" />
+          <div key={section.id} className="space-y-4 border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <GripVertical className="h-5 w-5 text-gray-400" />
+                <h2 className="text-xl font-semibold">{section.title}</h2>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleMoveSection(section.id, 'up')}
+                  disabled={isFirstSection}
+                  className={isFirstSection ? 'opacity-50' : ''}
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleMoveSection(section.id, 'down')}
+                  disabled={isLastSection}
+                  className={isLastSection ? 'opacity-50' : ''}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            {sectionQuestions.map((question, index) => 
-              renderQuestionCard(question, index, sectionQuestions)
+            <Separator />
+            {sectionQuestions.length > 0 ? (
+              <div className="space-y-4">
+                {sectionQuestions.map((question, index) => 
+                  renderQuestionCard(question, index, sectionQuestions, section.id)
+                )}
+              </div>
+            ) : (
+              <div className="p-4 text-center text-gray-500">
+                No questions in this section yet. Create your first question and assign it to this section.
+              </div>
             )}
           </div>
         );
@@ -99,13 +138,11 @@ const QuestionList: React.FC = () => {
 
       {/* Render unsectioned questions */}
       {unsectionedQuestions.length > 0 && (
-        <div className="space-y-4">
-          {sections.length > 0 && (
-            <div className="flex items-center space-x-2">
-              <h2 className="text-xl font-semibold">Other Questions</h2>
-              <Separator className="flex-1" />
-            </div>
-          )}
+        <div className="space-y-4 border rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <h2 className="text-xl font-semibold">Unsectioned Questions</h2>
+          </div>
+          <Separator />
           {unsectionedQuestions.map((question, index) => 
             renderQuestionCard(question, index, unsectionedQuestions)
           )}

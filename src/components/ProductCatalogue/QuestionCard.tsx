@@ -2,9 +2,20 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Settings, ChevronUp, ChevronDown } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { MoreHorizontal, ChevronUp, ChevronDown, Trash2, MessageSquare, Edit } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import { Question, AnswerOption, ConditionalLogic } from '@/hooks/useQuestions';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 type QuestionCardProps = {
   question: Question;
@@ -13,9 +24,10 @@ type QuestionCardProps = {
   onDelete: (id: string) => void;
   onOpenLogicDialog: (question: Question) => void;
   onOpenEditDialog: (question: Question) => void;
-  onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
+  onMoveQuestion: (questionId: string, direction: 'up' | 'down', sectionId?: string) => void;
   isFirst: boolean;
   isLast: boolean;
+  sectionId?: string;
 };
 
 const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -27,117 +39,135 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   onOpenEditDialog,
   onMoveQuestion,
   isFirst,
-  isLast
+  isLast,
+  sectionId
 }) => {
-  const getQuestionTypeLabel = (type: string) => {
-    switch (type) {
-      case 'text': return 'Text';
-      case 'select': return 'Dropdown Select';
-      case 'multiple_choice': return 'Multiple Choice';
-      case 'boolean': return 'Yes/No';
-      case 'number': return 'Number';
-      default: return type;
+  const handleMoveUp = () => {
+    onMoveQuestion(question.id, 'up', sectionId);
+  };
+
+  const handleMoveDown = () => {
+    onMoveQuestion(question.id, 'down', sectionId);
+  };
+
+  const renderQuestionTypeInfo = () => {
+    switch (question.type) {
+      case 'text':
+        return <span className="text-gray-500">Text input</span>;
+      case 'select':
+        return <span className="text-gray-500">Dropdown select with {answerOptions.length} options</span>;
+      case 'multiple_choice':
+        return <span className="text-gray-500">Multiple choice with {answerOptions.length} options</span>;
+      case 'boolean':
+        return <span className="text-gray-500">Yes/No question</span>;
+      case 'number':
+        return <span className="text-gray-500">Number input</span>;
+      default:
+        return null;
     }
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <CardTitle>{question.text}</CardTitle>
-            {question.short_id && (
-              <Badge variant="outline" className="bg-gray-100 text-gray-600">ID: {question.short_id}</Badge>
-            )}
-          </div>
-          <div className="flex mt-2 gap-2">
-            <Badge variant="outline">{getQuestionTypeLabel(question.type)}</Badge>
-            {question.required && <Badge>Required</Badge>}
-            {conditionalLogic.length > 0 && (
-              <Badge variant="secondary">Conditional</Badge>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <div className="flex flex-col">
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={() => onMoveQuestion(question.id, 'up')}
-              disabled={isFirst}
-              title="Move Up"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={() => onMoveQuestion(question.id, 'down')}
-              disabled={isLast}
-              title="Move Down"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </div>
-          <Button 
-            variant="outline" 
+    <Card className="shadow-sm border border-gray-200">
+      <CardHeader className="flex flex-row items-center justify-between py-3">
+        <CardTitle className="text-lg font-medium flex items-center">
+          <span className="mr-2 bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+            {question.short_id || 'Q'}
+          </span>
+          {question.text}
+          {question.required && <span className="text-red-500 ml-1">*</span>}
+        </CardTitle>
+        <div className="flex items-center space-x-1">
+          <Button
+            variant="ghost"
             size="icon"
-            onClick={() => onOpenLogicDialog(question)}
-            title="Conditional Logic"
+            onClick={handleMoveUp}
+            disabled={isFirst}
+            className={isFirst ? 'opacity-50' : ''}
           >
-            <Settings className="h-4 w-4" />
+            <ChevronUp className="h-4 w-4" />
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="ghost"
             size="icon"
-            onClick={() => onOpenEditDialog(question)}
-            title="Edit Question"
+            onClick={handleMoveDown}
+            disabled={isLast}
+            className={isLast ? 'opacity-50' : ''}
           >
-            <Edit className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4" />
           </Button>
-          <Button 
-            variant="destructive" 
-            size="icon" 
-            onClick={() => onDelete(question.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onOpenEditDialog(question)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit question
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onOpenLogicDialog(question)}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Conditional logic
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => onDelete(question.id)}
+                className="text-red-500 focus:text-red-500"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardHeader>
-      <CardContent>
-        {(question.type === 'select' || question.type === 'multiple_choice') && (
-          <div className="mt-2">
-            <h4 className="text-sm font-medium mb-1">Answer Options:</h4>
-            <div className="grid grid-cols-2 gap-2">
-              {answerOptions.map((option) => (
-                <div key={option.id} className="text-sm p-2 bg-gray-100 rounded-md">
-                  {option.text}
-                </div>
-              ))}
-            </div>
-          </div>
+      <CardContent className="pb-4">
+        <div className="text-sm">{renderQuestionTypeInfo()}</div>
+
+        {/* Show answer options if applicable */}
+        {(question.type === 'select' || question.type === 'multiple_choice') && answerOptions.length > 0 && (
+          <Accordion type="single" collapsible className="mt-2">
+            <AccordionItem value="options">
+              <AccordionTrigger className="text-sm py-1">
+                Answer Options ({answerOptions.length})
+              </AccordionTrigger>
+              <AccordionContent>
+                <ul className="space-y-1 text-sm">
+                  {answerOptions.map(option => (
+                    <li key={option.id} className="px-2 py-1 bg-gray-50 rounded">
+                      {option.text}
+                    </li>
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         )}
 
+        {/* Show conditional logic if applicable */}
         {conditionalLogic.length > 0 && (
-          <div className="mt-4 pt-4 border-t">
-            <h4 className="text-sm font-medium mb-1">Conditional Logic:</h4>
-            <div className="space-y-2">
-              {conditionalLogic.map((logic) => (
-                <div key={logic.id} className="text-sm">
-                  <span>Show only when </span>
-                  <span className="font-medium">
-                    [{logic.dependent_question?.short_id || ''}] {logic.dependent_question?.text}
-                  </span>
-                  <span> </span>
-                  <span className="font-medium">
-                    {logic.not_condition ? "is not" : "is"}
-                  </span>
-                  <span> </span>
-                  <span className="font-medium">"{logic.dependent_answer_value}"</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <Accordion type="single" collapsible className="mt-2">
+            <AccordionItem value="logic">
+              <AccordionTrigger className="text-sm py-1">
+                Conditional Logic ({conditionalLogic.length})
+              </AccordionTrigger>
+              <AccordionContent>
+                <ul className="space-y-1 text-sm">
+                  {conditionalLogic.map(logic => (
+                    <li key={logic.id} className="px-2 py-1 bg-gray-50 rounded">
+                      Show when{' '}
+                      <span className="font-medium">
+                        {logic.dependent_question?.text || 'Unknown question'}
+                      </span>{' '}
+                      is {logic.not_condition ? 'not ' : ''}
+                      <span className="font-medium">{logic.dependent_answer_value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         )}
       </CardContent>
     </Card>

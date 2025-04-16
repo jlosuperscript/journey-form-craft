@@ -204,6 +204,40 @@ export const useQuestions = () => {
     return data?.[0];
   };
 
+  const handleMoveSection = async (sectionId: string, direction: 'up' | 'down') => {
+    const currentIndex = sections.findIndex(s => s.id === sectionId);
+    if (
+      (direction === 'up' && currentIndex === 0) || 
+      (direction === 'down' && currentIndex === sections.length - 1)
+    ) {
+      return; // Can't move further in this direction
+    }
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const targetSection = sections[targetIndex];
+    const currentSection = sections[currentIndex];
+    
+    // Swap order_index values
+    const { error: error1 } = await supabase
+      .from('sections')
+      .update({ order_index: targetSection.order_index })
+      .eq('id', currentSection.id);
+      
+    const { error: error2 } = await supabase
+      .from('sections')
+      .update({ order_index: currentSection.order_index })
+      .eq('id', targetSection.id);
+    
+    if (error1 || error2) {
+      console.error('Error reordering sections:', error1 || error2);
+      toast.error('Error reordering sections');
+      return;
+    }
+    
+    toast.success('Sections reordered successfully');
+    fetchQuestions();
+  };
+
   const handleDeleteQuestion = async (id: string) => {
     const { error } = await supabase
       .from('questions')
@@ -220,18 +254,26 @@ export const useQuestions = () => {
     fetchQuestions();
   };
 
-  const handleMoveQuestion = async (questionId: string, direction: 'up' | 'down') => {
-    const currentIndex = questions.findIndex(q => q.id === questionId);
+  const handleMoveQuestion = async (questionId: string, direction: 'up' | 'down', sectionId?: string) => {
+    // Filter questions by section if sectionId is provided
+    let sectionQuestions = questions;
+    if (sectionId) {
+      sectionQuestions = questions.filter(q => q.section_id === sectionId);
+    } else {
+      sectionQuestions = questions.filter(q => !q.section_id);
+    }
+    
+    const currentIndex = sectionQuestions.findIndex(q => q.id === questionId);
     if (
       (direction === 'up' && currentIndex === 0) || 
-      (direction === 'down' && currentIndex === questions.length - 1)
+      (direction === 'down' && currentIndex === sectionQuestions.length - 1)
     ) {
       return; // Can't move further in this direction
     }
 
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    const targetQuestion = questions[targetIndex];
-    const currentQuestion = questions[currentIndex];
+    const targetQuestion = sectionQuestions[targetIndex];
+    const currentQuestion = sectionQuestions[currentIndex];
     
     // Swap order_index values
     const { error: error1 } = await supabase
@@ -268,6 +310,7 @@ export const useQuestions = () => {
     createSection,
     handleDeleteQuestion,
     handleMoveQuestion,
+    handleMoveSection,
     generateShortId
   };
 };
