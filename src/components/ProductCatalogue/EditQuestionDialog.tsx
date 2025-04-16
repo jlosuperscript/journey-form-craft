@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
@@ -203,18 +202,12 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
     setShowBulkInput(!showBulkInput);
   };
 
-  const handleDialogClose = (isOpen: boolean) => {
-    if (!isOpen) {
-      // Small delay to ensure state is reset properly
-      setTimeout(() => {
-        onOpenChange(false);
-      }, 0);
-    }
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleDialogClose}>
-      <DialogContent>
+    <Dialog 
+      open={open} 
+      onOpenChange={onOpenChange}
+    >
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Question</DialogTitle>
           <DialogDescription>

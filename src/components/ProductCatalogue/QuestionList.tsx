@@ -37,6 +37,20 @@ const QuestionList: React.FC = () => {
     setIsEditDialogOpen(true);
   };
 
+  const handleCloseLogicDialog = () => {
+    // Add a small delay before resetting state to ensure DOM cleanup
+    setTimeout(() => {
+      setIsLogicDialogOpen(false);
+    }, 50);
+  };
+
+  const handleCloseEditDialog = () => {
+    // Add a small delay before resetting state to ensure DOM cleanup
+    setTimeout(() => {
+      setIsEditDialogOpen(false);
+    }, 50);
+  };
+
   // Group questions by section
   const questionsBySection: { [key: string]: any[] } = {};
   const unsectionedQuestions: any[] = [];
@@ -159,7 +173,10 @@ const QuestionList: React.FC = () => {
         <>
           <ConditionalLogicDialog
             open={isLogicDialogOpen}
-            onOpenChange={setIsLogicDialogOpen}
+            onOpenChange={(open) => {
+              if (!open) handleCloseLogicDialog();
+              else setIsLogicDialogOpen(open);
+            }}
             question={selectedQuestion}
             questions={questions}
             answerOptions={answerOptions}
@@ -168,7 +185,10 @@ const QuestionList: React.FC = () => {
           />
           <EditQuestionDialog
             open={isEditDialogOpen}
-            onOpenChange={setIsEditDialogOpen}
+            onOpenChange={(open) => {
+              if (!open) handleCloseEditDialog();
+              else setIsEditDialogOpen(open);
+            }}
             question={selectedQuestion}
             answerOptions={answerOptions[selectedQuestion.id] || []}
             onQuestionUpdated={fetchQuestions}
