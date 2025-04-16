@@ -11,6 +11,7 @@ type Question = {
   type: string;
   required: boolean;
   order_index: number;
+  short_id?: string;
 };
 
 type AnswerOption = {
@@ -68,7 +69,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>{question.text}</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>{question.text}</CardTitle>
+            {question.short_id && (
+              <Badge variant="outline" className="bg-gray-100 text-gray-600">ID: {question.short_id}</Badge>
+            )}
+          </div>
           <div className="flex mt-2 gap-2">
             <Badge variant="outline">{getQuestionTypeLabel(question.type)}</Badge>
             {question.required && <Badge>Required</Badge>}
@@ -144,7 +150,9 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               {conditionalLogic.map((logic) => (
                 <div key={logic.id} className="text-sm">
                   <span>Show only when </span>
-                  <span className="font-medium">{logic.dependent_question?.text}</span>
+                  <span className="font-medium">
+                    [{logic.dependent_question?.short_id || ''}] {logic.dependent_question?.text}
+                  </span>
                   <span> </span>
                   <span className="font-medium">
                     {logic.not_condition ? "is not" : "is"}

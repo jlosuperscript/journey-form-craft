@@ -25,6 +25,7 @@ type Question = {
   type: string;
   required: boolean;
   order_index: number;
+  short_id?: string;
 };
 
 type AnswerOption = {
@@ -143,7 +144,9 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Conditional Logic for {question.text}</DialogTitle>
+          <DialogTitle>
+            Conditional Logic for {question.short_id ? `[${question.short_id}] ` : ''}{question.text}
+          </DialogTitle>
           <DialogDescription>
             Set when this question should be displayed based on answers to other questions
           </DialogDescription>
@@ -153,28 +156,34 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
           {existingLogic.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Existing Conditions:</h3>
-              {existingLogic.map((logic) => (
-                <div key={logic.id} className="flex items-center justify-between p-2 border rounded-md">
-                  <span className="text-sm">
-                    Show when{" "}
-                    <span className="font-medium">{questions.find(q => q.id === logic.dependent_question_id)?.text}</span>
-                    {" "}
-                    <span className="font-medium">
-                      {logic.not_condition ? "is not" : "is"}
+              {existingLogic.map((logic) => {
+                const dependentQuestion = questions.find(q => q.id === logic.dependent_question_id);
+                return (
+                  <div key={logic.id} className="flex items-center justify-between p-2 border rounded-md">
+                    <span className="text-sm">
+                      Show when{" "}
+                      <span className="font-medium">
+                        {dependentQuestion?.short_id ? `[${dependentQuestion.short_id}] ` : ''}
+                        {dependentQuestion?.text}
+                      </span>
+                      {" "}
+                      <span className="font-medium">
+                        {logic.not_condition ? "is not" : "is"}
+                      </span>
+                      {" "}
+                      <span className="font-medium">"{logic.dependent_answer_value}"</span>
                     </span>
-                    {" "}
-                    <span className="font-medium">"{logic.dependent_answer_value}"</span>
-                  </span>
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => handleDeleteLogic(logic.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </div>
-              ))}
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => handleDeleteLogic(logic.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -197,7 +206,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
                   <SelectContent>
                     {availableQuestions.map((q) => (
                       <SelectItem key={q.id} value={q.id}>
-                        {q.text}
+                        {q.short_id ? `[${q.short_id}] ` : ''}{q.text}
                       </SelectItem>
                     ))}
                   </SelectContent>

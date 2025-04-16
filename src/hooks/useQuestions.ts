@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import shortUUID from 'short-uuid';
 
 export type Question = {
   id: string;
@@ -9,6 +10,7 @@ export type Question = {
   type: string;
   required: boolean;
   order_index: number;
+  short_id?: string;
 };
 
 export type AnswerOption = {
@@ -34,6 +36,11 @@ export const useQuestions = () => {
   const [conditionalLogic, setConditionalLogic] = useState<{[key: string]: ConditionalLogic[]}>({});
   const [loading, setLoading] = useState(true);
 
+  const generateShortId = () => {
+    const translator = shortUUID();
+    return translator.new().substring(0, 5).toUpperCase();
+  };
+
   const fetchQuestions = async () => {
     setLoading(true);
     try {
@@ -47,6 +54,25 @@ export const useQuestions = () => {
         console.error('Error fetching questions:', questionsError);
         toast.error('Failed to load questions');
         return;
+      }
+
+      // Check if any questions are missing short_id and update them
+      const questionsToUpdate = questionsData?.filter(q => !q.short_id) || [];
+      
+      if (questionsToUpdate.length > 0) {
+        for (const question of questionsToUpdate) {
+          const shortId = generateShortId();
+          const { error: updateError } = await supabase
+            .from('questions')
+            .update({ short_id: shortId })
+            .eq('id', question.id);
+          
+          if (updateError) {
+            console.error('Error updating question with short_id:', updateError);
+          } else {
+            question.short_id = shortId;
+          }
+        }
       }
 
       setQuestions(questionsData || []);
@@ -182,6 +208,7 @@ export const useQuestions = () => {
     loading,
     fetchQuestions,
     handleDeleteQuestion,
-    handleMoveQuestion
+    handleMoveQuestion,
+    generateShortId
   };
 };
