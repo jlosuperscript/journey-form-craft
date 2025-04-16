@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
@@ -20,6 +21,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Trash2, Upload } from 'lucide-react';
+import { Section } from '@/hooks/useQuestions';
 
 type Question = {
   id: string;
@@ -27,6 +29,7 @@ type Question = {
   type: string;
   required: boolean;
   order_index: number;
+  section_id?: string;
 };
 
 type AnswerOption = {
@@ -43,6 +46,7 @@ type EditQuestionDialogProps = {
   question: Question | null;
   answerOptions: AnswerOption[];
   onQuestionUpdated: () => void;
+  sections: Section[];
 };
 
 const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({ 
@@ -50,11 +54,13 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
   onOpenChange,
   question,
   answerOptions,
-  onQuestionUpdated
+  onQuestionUpdated,
+  sections
 }) => {
   const [questionText, setQuestionText] = useState('');
   const [questionType, setQuestionType] = useState('');
   const [isRequired, setIsRequired] = useState(false);
+  const [sectionId, setSectionId] = useState<string | undefined>(undefined);
   const [options, setOptions] = useState<{text: string, value: string, id?: string}[]>([]);
   const [newOptionText, setNewOptionText] = useState('');
   const [bulkOptions, setBulkOptions] = useState('');
@@ -65,6 +71,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
       setQuestionText(question.text);
       setQuestionType(question.type);
       setIsRequired(question.required);
+      setSectionId(question.section_id);
       
       if (answerOptions && answerOptions.length > 0) {
         setOptions(answerOptions.map(option => ({
@@ -98,7 +105,8 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
       .update({
         text: questionText,
         type: questionType,
-        required: isRequired
+        required: isRequired,
+        section_id: sectionId === 'no_section' ? null : sectionId
       })
       .eq('id', question.id);
 
@@ -195,8 +203,17 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
     setShowBulkInput(!showBulkInput);
   };
 
+  const handleDialogClose = (isOpen: boolean) => {
+    if (!isOpen) {
+      // Small delay to ensure state is reset properly
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 0);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Question</DialogTitle>
@@ -230,6 +247,26 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({
                 <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
                 <SelectItem value="boolean">Yes/No</SelectItem>
                 <SelectItem value="number">Number</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="block mb-2">Section</label>
+            <Select 
+              value={sectionId || 'no_section'} 
+              onValueChange={(value) => setSectionId(value === 'no_section' ? undefined : value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a section (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="no_section">No Section</SelectItem>
+                {sections.map(section => (
+                  <SelectItem key={section.id} value={section.id}>
+                    {section.title}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
