@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Edit, Trash2, Plus, Settings } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import ConditionalLogicDialog from './ConditionalLogicDialog';
+import EditQuestionDialog from './EditQuestionDialog';
 import { toast } from 'sonner';
 
 type Question = {
@@ -38,6 +39,7 @@ const QuestionList: React.FC = () => {
   const [conditionalLogic, setConditionalLogic] = useState<{[key: string]: ConditionalLogic[]}>({});
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [isLogicDialogOpen, setIsLogicDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchQuestions();
@@ -140,6 +142,11 @@ const QuestionList: React.FC = () => {
     setIsLogicDialogOpen(true);
   };
 
+  const handleOpenEditDialog = (question: Question) => {
+    setSelectedQuestion(question);
+    setIsEditDialogOpen(true);
+  };
+
   const getQuestionTypeLabel = (type: string) => {
     switch (type) {
       case 'text': return 'Text';
@@ -175,7 +182,12 @@ const QuestionList: React.FC = () => {
               >
                 <Settings className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon">
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => handleOpenEditDialog(question)}
+                title="Edit Question"
+              >
                 <Edit className="h-4 w-4" />
               </Button>
               <Button 
@@ -221,15 +233,24 @@ const QuestionList: React.FC = () => {
       ))}
 
       {selectedQuestion && (
-        <ConditionalLogicDialog
-          open={isLogicDialogOpen}
-          onOpenChange={setIsLogicDialogOpen}
-          question={selectedQuestion}
-          questions={questions}
-          answerOptions={answerOptions}
-          existingLogic={conditionalLogic[selectedQuestion.id] || []}
-          onLogicUpdated={fetchQuestions}
-        />
+        <>
+          <ConditionalLogicDialog
+            open={isLogicDialogOpen}
+            onOpenChange={setIsLogicDialogOpen}
+            question={selectedQuestion}
+            questions={questions}
+            answerOptions={answerOptions}
+            existingLogic={conditionalLogic[selectedQuestion.id] || []}
+            onLogicUpdated={fetchQuestions}
+          />
+          <EditQuestionDialog
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            question={selectedQuestion}
+            answerOptions={answerOptions[selectedQuestion.id] || []}
+            onQuestionUpdated={fetchQuestions}
+          />
+        </>
       )}
     </div>
   );
