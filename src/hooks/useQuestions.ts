@@ -81,6 +81,7 @@ export const useQuestions = () => {
       if (questionsError) {
         console.error('Error fetching questions:', questionsError);
         toast.error('Failed to load questions');
+        setLoading(false);
         return;
       }
 
@@ -114,6 +115,7 @@ export const useQuestions = () => {
       if (optionsError) {
         console.error('Error fetching answer options:', optionsError);
         toast.error('Failed to load answer options');
+        setLoading(false);
         return;
       }
 
@@ -135,6 +137,7 @@ export const useQuestions = () => {
       if (logicError) {
         console.error('Error fetching conditional logic:', logicError);
         toast.error('Failed to load conditional logic');
+        setLoading(false);
         return;
       }
 
@@ -250,6 +253,10 @@ export const useQuestions = () => {
     toast.success('Questions reordered successfully');
     fetchQuestions();
   };
+
+  useEffect(() => {
+    fetchQuestions();
+  }, []);
 
   return {
     questions,
