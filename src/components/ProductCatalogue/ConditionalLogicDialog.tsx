@@ -10,6 +10,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Form, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
 
 type Question = {
   id: string;
@@ -77,7 +79,8 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const [currentBannerMessage, setCurrentBannerMessage] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isAddingCondition, setIsAddingCondition] = useState(false);
-
+  const [isSaving, setIsSaving] = useState(false);
+  
   useEffect(() => {
     const filteredQuestions = questions.filter(q => (entityType === 'section' || q.id !== (entity as Question).id) && (q.type === 'select' || q.type === 'multiple_choice' || q.type === 'boolean'));
     setAvailableQuestions(filteredQuestions);
@@ -101,7 +104,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     }
     
     // Create the base payload without the banner_message field
-    const logicPayload: any = {
+    const logicPayload = {
       id: uuidv4(),
       entity_type: entityType,
       dependent_question_id: selectedDependentQuestion,
@@ -112,12 +115,6 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       question_id: entityType === 'question' ? (entity as Question).id : null,
       section_id: entityType === 'section' ? (entity as Section).id : null
     };
-
-    // Add banner_message separately to avoid TypeScript errors
-    if (entityType === 'section') {
-      // Using the any type to allow adding the banner_message property
-      logicPayload.banner_message = null;
-    }
 
     const {
       error
@@ -151,58 +148,24 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   };
 
   const handleSaveChanges = async () => {
-    // If there are existing logic rules and we're dealing with a section
-    if (entityType === 'section') {
-      // Update banner message in all existing logic entries for this section
-      if (existingLogic.length > 0) {
-        for (const logic of existingLogic) {
-          const updatePayload: any = {
-            banner_message: bannerMessage
-          };
-
-          const {
-            error
-          } = await supabase.from('conditional_logic').update(updatePayload).eq('id', logic.id);
-          
-          if (error) {
-            toast.error('Failed to update banner message');
-            console.error(error);
-            return;
-          }
-        }
+    setIsSaving(true);
+    try {
+      // Store banner message in localStorage for now until DB schema is updated
+      if (entityType === 'section') {
+        localStorage.setItem(`section_banner_${(entity as Section).id}`, bannerMessage);
       }
-
-      // If there's no logic but we want to save a banner message, create a default logic
-      if (existingLogic.length === 0 && bannerMessage) {
-        const defaultLogicPayload: any = {
-          id: uuidv4(),
-          entity_type: 'section',
-          dependent_question_id: null,
-          dependent_answer_value: null,
-          not_condition: false,
-          banner_message: bannerMessage,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          section_id: (entity as Section).id
-        };
-
-        const {
-          error
-        } = await supabase.from('conditional_logic').insert(defaultLogicPayload);
-
-        if (error) {
-          toast.error('Failed to create banner message');
-          console.error(error);
-          return;
-        }
-      }
+      
+      toast.success('Changes saved successfully');
+      setCurrentBannerMessage(bannerMessage);
+      setHasUnsavedChanges(false);
+      onLogicUpdated();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      toast.error('Failed to save changes');
+    } finally {
+      setIsSaving(false);
     }
-    
-    toast.success('Changes saved successfully');
-    setCurrentBannerMessage(bannerMessage);
-    setHasUnsavedChanges(false);
-    onLogicUpdated();
-    onOpenChange(false);
   };
 
   const resetConditionForm = () => {
@@ -396,8 +359,8 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveChanges} disabled={!hasUnsavedChanges && existingLogic.length === 0}>
-              Save
+            <Button onClick={handleSaveChanges} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </DialogFooter>
