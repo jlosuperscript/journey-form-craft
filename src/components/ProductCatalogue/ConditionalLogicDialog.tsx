@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type Question = {
   id: string;
@@ -50,6 +51,7 @@ type ConditionalLogic = {
   dependent_answer_value: string;
   not_condition?: boolean;
   dependent_question?: Question;
+  is_answered_condition?: boolean;
 };
 
 type ConditionalLogicDialogProps = {
@@ -62,6 +64,8 @@ type ConditionalLogicDialogProps = {
   existingLogic: ConditionalLogic[];
   onLogicUpdated: () => void;
 };
+
+type ConditionType = 'equals' | 'is_answered';
 
 const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   open,
@@ -76,6 +80,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const [selectedDependentQuestion, setSelectedDependentQuestion] = useState('');
   const [selectedAnswerValue, setSelectedAnswerValue] = useState('');
   const [conditionType, setConditionType] = useState<'is'|'is_not'>('is');
+  const [logicType, setLogicType] = useState<ConditionType>('equals');
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
   
   const isSection = !!section;
@@ -84,21 +89,31 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const targetShortId = isSection ? null : question?.short_id;
 
   useEffect(() => {
-    // Filter out current question (if applicable) and questions without answer options
-    let filteredQuestions = questions.filter(q => 
-      (isSection || q.id !== question?.id) && 
-      (q.type === 'select' || q.type === 'multiple_choice' || q.type === 'boolean')
-    );
+    // Filter out current question (if applicable) and questions without answer options for equals type
+    let filteredQuestions = questions;
+    if (isSection || (question && question.id)) {
+      filteredQuestions = questions.filter(q => 
+        isSection || q.id !== question?.id
+      );
+    }
     setAvailableQuestions(filteredQuestions);
   }, [question, section, questions, isSection]);
 
   const handleAddLogic = async () => {
-    if (!selectedDependentQuestion || !selectedAnswerValue) {
-      toast.error('Please select a question and answer value');
+    if (!selectedDependentQuestion) {
+      toast.error('Please select a question');
+      return;
+    }
+
+    if (logicType === 'equals' && !selectedAnswerValue) {
+      toast.error('Please select an answer value');
       return;
     }
 
     try {
+      // For "has been answered" condition, we use a special value
+      const answerValue = logicType === 'is_answered' ? '__ANSWERED__' : selectedAnswerValue;
+      
       // For sections, we need to handle section_id
       if (isSection && targetId) {
         const { error } = await supabase
@@ -106,9 +121,10 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
           .insert({
             section_id: targetId,
             dependent_question_id: selectedDependentQuestion,
-            dependent_answer_value: selectedAnswerValue,
+            dependent_answer_value: answerValue,
             not_condition: conditionType === 'is_not',
-            question_id: null
+            question_id: null,
+            is_answered_condition: logicType === 'is_answered'
           });
 
         if (error) {
@@ -124,9 +140,10 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
           .insert({
             question_id: targetId,
             dependent_question_id: selectedDependentQuestion,
-            dependent_answer_value: selectedAnswerValue,
+            dependent_answer_value: answerValue,
             not_condition: conditionType === 'is_not',
-            section_id: null
+            section_id: null,
+            is_answered_condition: logicType === 'is_answered'
           });
 
         if (error) {
@@ -165,6 +182,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     setSelectedDependentQuestion('');
     setSelectedAnswerValue('');
     setConditionType('is');
+    setLogicType('equals');
   };
 
   const getAnswerOptionsForQuestion = (questionId: string) => {
@@ -179,6 +197,42 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     }
     
     return options;
+  };
+
+  const renderLogicDescription = (logic: ConditionalLogic) => {
+    const dependentQuestion = questions.find(q => q.id === logic.dependent_question_id);
+    
+    if (logic.is_answered_condition) {
+      return (
+        <span className="text-sm">
+          Show when{" "}
+          <span className="font-medium">
+            {dependentQuestion?.short_id ? `[${dependentQuestion.short_id}] ` : ''}
+            {dependentQuestion?.text}
+          </span>
+          {" "}
+          <span className="font-medium">
+            {logic.not_condition ? "has not been" : "has been"} answered
+          </span>
+        </span>
+      );
+    }
+    
+    return (
+      <span className="text-sm">
+        Show when{" "}
+        <span className="font-medium">
+          {dependentQuestion?.short_id ? `[${dependentQuestion.short_id}] ` : ''}
+          {dependentQuestion?.text}
+        </span>
+        {" "}
+        <span className="font-medium">
+          {logic.not_condition ? "is not" : "is"}
+        </span>
+        {" "}
+        <span className="font-medium">"{logic.dependent_answer_value}"</span>
+      </span>
+    );
   };
 
   return (
@@ -197,34 +251,19 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
           {existingLogic.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Existing Conditions:</h3>
-              {existingLogic.map((logic) => {
-                const dependentQuestion = questions.find(q => q.id === logic.dependent_question_id);
-                return (
-                  <div key={logic.id} className="flex items-center justify-between p-2 border rounded-md">
-                    <span className="text-sm">
-                      Show when{" "}
-                      <span className="font-medium">
-                        {dependentQuestion?.short_id ? `[${dependentQuestion.short_id}] ` : ''}
-                        {dependentQuestion?.text}
-                      </span>
-                      {" "}
-                      <span className="font-medium">
-                        {logic.not_condition ? "is not" : "is"}
-                      </span>
-                      {" "}
-                      <span className="font-medium">"{logic.dependent_answer_value}"</span>
-                    </span>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => handleDeleteLogic(logic.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                );
-              })}
+              {existingLogic.map((logic) => (
+                <div key={logic.id} className="flex items-center justify-between p-2 border rounded-md">
+                  {renderLogicDescription(logic)}
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => handleDeleteLogic(logic.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              ))}
             </div>
           )}
 
@@ -257,39 +296,79 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
               {selectedDependentQuestion && (
                 <>
                   <div>
-                    <label className="block mb-2 text-sm">Condition</label>
-                    <Select 
-                      value={conditionType} 
-                      onValueChange={(value) => setConditionType(value as 'is' | 'is_not')}
+                    <label className="block mb-2 text-sm">Logic Type</label>
+                    <RadioGroup 
+                      value={logicType} 
+                      onValueChange={(value) => setLogicType(value as ConditionType)}
+                      className="flex flex-col space-y-2"
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select condition type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="is">is</SelectItem>
-                        <SelectItem value="is_not">is not</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="equals" id="equals" />
+                        <label htmlFor="equals" className="text-sm">Has specific answer</label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="is_answered" id="is_answered" />
+                        <label htmlFor="is_answered" className="text-sm">Has been answered</label>
+                      </div>
+                    </RadioGroup>
                   </div>
+                  
+                  {logicType === 'equals' && (
+                    <>
+                      <div>
+                        <label className="block mb-2 text-sm">Condition</label>
+                        <Select 
+                          value={conditionType} 
+                          onValueChange={(value) => setConditionType(value as 'is' | 'is_not')}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select condition type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="is">is</SelectItem>
+                            <SelectItem value="is_not">is not</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                  <div>
-                    <label className="block mb-2 text-sm">Answer Value</label>
-                    <Select 
-                      value={selectedAnswerValue} 
-                      onValueChange={setSelectedAnswerValue}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an answer value" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getAnswerOptionsForQuestion(selectedDependentQuestion).map((option) => (
-                          <SelectItem key={option.id} value={option.value}>
-                            {option.text}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      <div>
+                        <label className="block mb-2 text-sm">Answer Value</label>
+                        <Select 
+                          value={selectedAnswerValue} 
+                          onValueChange={setSelectedAnswerValue}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an answer value" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAnswerOptionsForQuestion(selectedDependentQuestion).map((option) => (
+                              <SelectItem key={option.id} value={option.value}>
+                                {option.text}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
+                  
+                  {logicType === 'is_answered' && (
+                    <div>
+                      <label className="block mb-2 text-sm">Condition</label>
+                      <Select 
+                        value={conditionType} 
+                        onValueChange={(value) => setConditionType(value as 'is' | 'is_not')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select condition type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="is">has been</SelectItem>
+                          <SelectItem value="is_not">has not been</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </>
               )}
 

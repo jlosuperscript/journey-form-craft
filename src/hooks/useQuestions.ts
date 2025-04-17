@@ -37,6 +37,7 @@ export type ConditionalLogic = {
   dependent_answer_value: string;
   not_condition?: boolean;
   dependent_question?: Question;
+  is_answered_condition?: boolean;
 };
 
 export const useQuestions = () => {
