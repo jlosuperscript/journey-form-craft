@@ -103,13 +103,14 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       return;
     }
     
-    // Create the base payload without the banner_message field
+    // Create the payload with the banner_message field
     const logicPayload = {
       id: uuidv4(),
       entity_type: entityType,
       dependent_question_id: selectedDependentQuestion,
       dependent_answer_value: selectedAnswerValue,
       not_condition: conditionType === 'is_not',
+      banner_message: null, // Include the field but set to null for non-section conditions
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       question_id: entityType === 'question' ? (entity as Question).id : null,
@@ -150,14 +151,42 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
-      // Store banner message in localStorage for now until DB schema is updated
       if (entityType === 'section') {
-        localStorage.setItem(`section_banner_${(entity as Section).id}`, bannerMessage);
+        // If there are existing logic rows for this section, update the first one with the banner message
+        if (existingLogic.length > 0) {
+          const firstLogic = existingLogic[0];
+          const { error } = await supabase
+            .from('conditional_logic')
+            .update({ banner_message: bannerMessage })
+            .eq('id', firstLogic.id);
+          
+          if (error) {
+            console.error('Error updating banner message:', error);
+            throw error;
+          }
+        } else if (bannerMessage) {
+          // If there's no existing logic but we have a banner message, create a dummy logic entry
+          // This is a workaround until we have a better way to store section banners
+          const { error } = await supabase.from('conditional_logic').insert({
+            id: uuidv4(),
+            entity_type: 'section',
+            section_id: (entity as Section).id,
+            dependent_question_id: questions.length > 0 ? questions[0].id : null, // Use first question as placeholder
+            dependent_answer_value: 'dummy_value', // Placeholder value
+            banner_message: bannerMessage,
+            not_condition: true // Set to true so this condition is unlikely to be met
+          });
+          
+          if (error) {
+            console.error('Error creating banner logic:', error);
+            throw error;
+          }
+        }
       }
       
-      toast.success('Changes saved successfully');
       setCurrentBannerMessage(bannerMessage);
       setHasUnsavedChanges(false);
+      toast.success('Changes saved successfully');
       onLogicUpdated();
       onOpenChange(false);
     } catch (error) {

@@ -27,19 +27,6 @@ const QuestionList: React.FC = () => {
   const [isLogicDialogOpen, setIsLogicDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [logicEntityType, setLogicEntityType] = useState<'question' | 'section'>('question');
-  const [sectionBanners, setSectionBanners] = useState<{[key: string]: string}>({});
-
-  useEffect(() => {
-    // Load banners from localStorage
-    const banners: {[key: string]: string} = {};
-    sections.forEach(section => {
-      const bannerMsg = localStorage.getItem(`section_banner_${section.id}`);
-      if (bannerMsg) {
-        banners[section.id] = bannerMsg;
-      }
-    });
-    setSectionBanners(banners);
-  }, [sections]);
 
   const handleOpenLogicDialog = (question: Question) => {
     setSelectedQuestion(question);
@@ -64,16 +51,6 @@ const QuestionList: React.FC = () => {
     setTimeout(() => {
       setIsLogicDialogOpen(false);
     }, 50);
-    
-    // Refresh banners when dialog is closed
-    const banners: {[key: string]: string} = {};
-    sections.forEach(section => {
-      const bannerMsg = localStorage.getItem(`section_banner_${section.id}`);
-      if (bannerMsg) {
-        banners[section.id] = bannerMsg;
-      }
-    });
-    setSectionBanners(banners);
   };
 
   const handleCloseEditDialog = () => {
@@ -114,13 +91,6 @@ const QuestionList: React.FC = () => {
   };
 
   const getSectionBannerMessage = (sectionId: string) => {
-    // First try localStorage
-    const localBanner = sectionBanners[sectionId];
-    if (localBanner) {
-      return localBanner;
-    }
-    
-    // Fallback to conditional logic (if database schema supports it in the future)
     if (!conditionalLogic[sectionId] || conditionalLogic[sectionId].length === 0) {
       return null;
     }

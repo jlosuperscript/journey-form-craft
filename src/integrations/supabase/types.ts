@@ -49,6 +49,7 @@ export type Database = {
       }
       conditional_logic: {
         Row: {
+          banner_message: string | null
           created_at: string
           dependent_answer_value: string
           dependent_question_id: string
@@ -60,6 +61,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          banner_message?: string | null
           created_at?: string
           dependent_answer_value: string
           dependent_question_id: string
@@ -71,6 +73,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          banner_message?: string | null
           created_at?: string
           dependent_answer_value?: string
           dependent_question_id?: string
