@@ -100,16 +100,10 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       dependent_answer_value: selectedAnswerValue,
       not_condition: conditionType === 'is_not',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    } as any;
-
-    if (entityType === 'question') {
-      logicPayload.question_id = (entity as Question).id;
-      logicPayload.section_id = null;
-    } else {
-      logicPayload.section_id = (entity as Section).id;
-      logicPayload.question_id = null;
-    }
+      updated_at: new Date().toISOString(),
+      question_id: entityType === 'question' ? (entity as Question).id : null,
+      section_id: entityType === 'section' ? (entity as Section).id : null
+    };
 
     const { error } = await supabase
       .from('conditional_logic')
@@ -292,7 +286,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
                   Reset
                 </Button>
                 <Button onClick={handleAddLogic}>
-                  Add Condition
+                  {entityType === 'section' ? 'Show section logic' : 'Add Condition'}
                 </Button>
               </div>
             </div>
