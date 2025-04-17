@@ -98,33 +98,51 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       return;
     }
 
-    const logicData = isSection 
-      ? {
-          section_id: targetId,
-          dependent_question_id: selectedDependentQuestion,
-          dependent_answer_value: selectedAnswerValue,
-          not_condition: conditionType === 'is_not'
+    try {
+      // For sections, we need to handle section_id
+      if (isSection && targetId) {
+        const { error } = await supabase
+          .from('conditional_logic')
+          .insert({
+            section_id: targetId,
+            dependent_question_id: selectedDependentQuestion,
+            dependent_answer_value: selectedAnswerValue,
+            not_condition: conditionType === 'is_not',
+            question_id: null
+          });
+
+        if (error) {
+          toast.error('Failed to add conditional logic');
+          console.error(error);
+          return;
         }
-      : {
-          question_id: targetId,
-          dependent_question_id: selectedDependentQuestion,
-          dependent_answer_value: selectedAnswerValue,
-          not_condition: conditionType === 'is_not'
-        };
+      } 
+      // For questions, we handle question_id
+      else if (!isSection && targetId) {
+        const { error } = await supabase
+          .from('conditional_logic')
+          .insert({
+            question_id: targetId,
+            dependent_question_id: selectedDependentQuestion,
+            dependent_answer_value: selectedAnswerValue,
+            not_condition: conditionType === 'is_not',
+            section_id: null
+          });
 
-    const { error } = await supabase
-      .from('conditional_logic')
-      .insert(logicData);
+        if (error) {
+          toast.error('Failed to add conditional logic');
+          console.error(error);
+          return;
+        }
+      }
 
-    if (error) {
-      toast.error('Failed to add conditional logic');
-      console.error(error);
-      return;
+      toast.success('Conditional logic added successfully');
+      resetForm();
+      onLogicUpdated();
+    } catch (error) {
+      console.error('Error adding conditional logic:', error);
+      toast.error('An unexpected error occurred');
     }
-
-    toast.success('Conditional logic added successfully');
-    resetForm();
-    onLogicUpdated();
   };
 
   const handleDeleteLogic = async (logicId: string) => {
