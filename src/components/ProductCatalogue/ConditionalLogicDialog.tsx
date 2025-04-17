@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
@@ -18,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 
 type Question = {
   id: string;
@@ -80,7 +80,6 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
-    // Filter out current question (if entity is a question) and questions without answer options
     const filteredQuestions = questions.filter(q => 
       (entityType === 'section' || q.id !== (entity as Question).id) && 
       (q.type === 'select' || q.type === 'multiple_choice' || q.type === 'boolean')
@@ -94,21 +93,22 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       return;
     }
 
-    // First, create the base payload
-    const logicPayload: any = {
+    const logicPayload = {
+      id: uuidv4(),
       entity_type: entityType,
       dependent_question_id: selectedDependentQuestion,
       dependent_answer_value: selectedAnswerValue,
-      not_condition: conditionType === 'is_not'
-    };
+      not_condition: conditionType === 'is_not',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    } as any;
 
-    // Add the ID of the entity based on entity type
     if (entityType === 'question') {
       logicPayload.question_id = (entity as Question).id;
       logicPayload.section_id = null;
     } else {
       logicPayload.section_id = (entity as Section).id;
-      logicPayload.question_id = null; // Required by the schema but will be null for sections
+      logicPayload.question_id = null;
     }
 
     const { error } = await supabase
@@ -162,7 +162,6 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     return options;
   };
 
-  // Get the entity name for display
   const getEntityName = () => {
     if (entityType === 'question') {
       const question = entity as Question;

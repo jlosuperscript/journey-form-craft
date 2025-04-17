@@ -55,7 +55,7 @@ export type Database = {
           entity_type: string
           id: string
           not_condition: boolean | null
-          question_id: string
+          question_id: string | null
           section_id: string | null
           updated_at: string
         }
@@ -66,7 +66,7 @@ export type Database = {
           entity_type?: string
           id?: string
           not_condition?: boolean | null
-          question_id: string
+          question_id?: string | null
           section_id?: string | null
           updated_at?: string
         }
@@ -77,7 +77,7 @@ export type Database = {
           entity_type?: string
           id?: string
           not_condition?: boolean | null
-          question_id?: string
+          question_id?: string | null
           section_id?: string | null
           updated_at?: string
         }
