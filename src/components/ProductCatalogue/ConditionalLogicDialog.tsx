@@ -94,7 +94,8 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       return;
     }
 
-    const logicPayload = {
+    // First, create the base payload
+    const logicPayload: any = {
       entity_type: entityType,
       dependent_question_id: selectedDependentQuestion,
       dependent_answer_value: selectedAnswerValue,
@@ -103,9 +104,11 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
 
     // Add the ID of the entity based on entity type
     if (entityType === 'question') {
-      logicPayload['question_id'] = (entity as Question).id;
+      logicPayload.question_id = (entity as Question).id;
+      logicPayload.section_id = null;
     } else {
-      logicPayload['section_id'] = (entity as Section).id;
+      logicPayload.section_id = (entity as Section).id;
+      logicPayload.question_id = null; // Required by the schema but will be null for sections
     }
 
     const { error } = await supabase
