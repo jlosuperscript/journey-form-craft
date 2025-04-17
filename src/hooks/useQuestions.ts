@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -31,7 +30,9 @@ export type AnswerOption = {
 
 export type ConditionalLogic = {
   id: string;
-  question_id: string;
+  question_id?: string;
+  section_id?: string;
+  entity_type: string;
   dependent_question_id: string;
   dependent_answer_value: string;
   not_condition?: boolean;
@@ -69,10 +70,8 @@ export const useQuestions = () => {
   const fetchQuestions = async () => {
     setLoading(true);
     try {
-      // Fetch sections first
       await fetchSections();
       
-      // Fetch all questions
       const { data: questionsData, error: questionsError } = await supabase
         .from('questions')
         .select('*')
@@ -85,7 +84,6 @@ export const useQuestions = () => {
         return;
       }
 
-      // Check if any questions are missing short_id and update them
       const questionsToUpdate = questionsData?.filter(q => !q.short_id) || [];
       
       if (questionsToUpdate.length > 0) {
@@ -106,7 +104,6 @@ export const useQuestions = () => {
 
       setQuestions(questionsData || []);
 
-      // Fetch all answer options
       const { data: optionsData, error: optionsError } = await supabase
         .from('answer_options')
         .select('*')
@@ -119,7 +116,6 @@ export const useQuestions = () => {
         return;
       }
 
-      // Group options by question_id
       const optionsByQuestion: {[key: string]: AnswerOption[]} = {};
       optionsData?.forEach(option => {
         if (!optionsByQuestion[option.question_id]) {
@@ -129,7 +125,6 @@ export const useQuestions = () => {
       });
       setAnswerOptions(optionsByQuestion);
 
-      // Fetch conditional logic
       const { data: logicData, error: logicError } = await supabase
         .from('conditional_logic')
         .select('*');
@@ -141,11 +136,10 @@ export const useQuestions = () => {
         return;
       }
 
-      // Now fetch dependent questions separately
       const logicByQuestion: {[key: string]: ConditionalLogic[]} = {};
+      const logicBySection: {[key: string]: ConditionalLogic[]} = {};
       
       for (const logic of logicData || []) {
-        // Get dependent question details
         const { data: dependentQuestion, error: dependentError } = await supabase
           .from('questions')
           .select('*')
@@ -157,19 +151,26 @@ export const useQuestions = () => {
           continue;
         }
 
-        // Add the logic with the dependent question
         const logicWithDependent: ConditionalLogic = {
           ...logic,
           dependent_question: dependentQuestion
         };
 
-        if (!logicByQuestion[logic.question_id]) {
-          logicByQuestion[logic.question_id] = [];
+        if (logic.entity_type === 'question' && logic.question_id) {
+          if (!logicByQuestion[logic.question_id]) {
+            logicByQuestion[logic.question_id] = [];
+          }
+          logicByQuestion[logic.question_id].push(logicWithDependent);
+        } else if (logic.entity_type === 'section' && logic.section_id) {
+          if (!logicBySection[logic.section_id]) {
+            logicBySection[logic.section_id] = [];
+          }
+          logicBySection[logic.section_id].push(logicWithDependent);
         }
-        logicByQuestion[logic.question_id].push(logicWithDependent);
       }
       
-      setConditionalLogic(logicByQuestion);
+      const combinedLogic = {...logicByQuestion, ...logicBySection};
+      setConditionalLogic(combinedLogic);
     } catch (error) {
       console.error('Error in fetchQuestions:', error);
       toast.error('An error occurred while loading questions');
@@ -179,7 +180,6 @@ export const useQuestions = () => {
   };
 
   const createSection = async (title: string) => {
-    // Get the max order_index to place the new section at the end
     const maxOrderIndex = sections.length > 0 
       ? Math.max(...sections.map(s => s.order_index)) 
       : -1;
@@ -217,7 +217,6 @@ export const useQuestions = () => {
     const targetSection = sections[targetIndex];
     const currentSection = sections[currentIndex];
     
-    // Swap order_index values
     const { error: error1 } = await supabase
       .from('sections')
       .update({ order_index: targetSection.order_index })
@@ -255,7 +254,6 @@ export const useQuestions = () => {
   };
 
   const handleMoveQuestion = async (questionId: string, direction: 'up' | 'down', sectionId?: string) => {
-    // Filter questions by section if sectionId is provided
     let sectionQuestions = questions;
     if (sectionId) {
       sectionQuestions = questions.filter(q => q.section_id === sectionId);
@@ -275,7 +273,6 @@ export const useQuestions = () => {
     const targetQuestion = sectionQuestions[targetIndex];
     const currentQuestion = sectionQuestions[currentIndex];
     
-    // Swap order_index values
     const { error: error1 } = await supabase
       .from('questions')
       .update({ order_index: targetQuestion.order_index })

@@ -52,27 +52,33 @@ export type Database = {
           created_at: string
           dependent_answer_value: string
           dependent_question_id: string
+          entity_type: string
           id: string
           not_condition: boolean | null
           question_id: string
+          section_id: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           dependent_answer_value: string
           dependent_question_id: string
+          entity_type?: string
           id?: string
           not_condition?: boolean | null
           question_id: string
+          section_id?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           dependent_answer_value?: string
           dependent_question_id?: string
+          entity_type?: string
           id?: string
           not_condition?: boolean | null
           question_id?: string
+          section_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -88,6 +94,13 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conditional_logic_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
             referencedColumns: ["id"]
           },
         ]

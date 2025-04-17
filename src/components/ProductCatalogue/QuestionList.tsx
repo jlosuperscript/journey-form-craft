@@ -4,11 +4,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import ConditionalLogicDialog from './ConditionalLogicDialog';
 import EditQuestionDialog from './EditQuestionDialog';
 import QuestionCard from './QuestionCard';
-import { useQuestions } from '@/hooks/useQuestions';
+import { useQuestions, Section, Question } from '@/hooks/useQuestions';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
-import { Section } from '@/hooks/useQuestions';
+import { ChevronUp, ChevronDown, GripVertical, Code } from 'lucide-react';
 
 const QuestionList: React.FC = () => {
   const {
@@ -23,16 +22,27 @@ const QuestionList: React.FC = () => {
     handleMoveSection
   } = useQuestions();
   
-  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+  const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [isLogicDialogOpen, setIsLogicDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [logicEntityType, setLogicEntityType] = useState<'question' | 'section'>('question');
 
-  const handleOpenLogicDialog = (question: any) => {
+  const handleOpenLogicDialog = (question: Question) => {
     setSelectedQuestion(question);
+    setSelectedSection(null);
+    setLogicEntityType('question');
     setIsLogicDialogOpen(true);
   };
 
-  const handleOpenEditDialog = (question: any) => {
+  const handleOpenSectionLogicDialog = (section: Section) => {
+    setSelectedSection(section);
+    setSelectedQuestion(null);
+    setLogicEntityType('section');
+    setIsLogicDialogOpen(true);
+  };
+
+  const handleOpenEditDialog = (question: Question) => {
     setSelectedQuestion(question);
     setIsEditDialogOpen(true);
   };
@@ -52,8 +62,8 @@ const QuestionList: React.FC = () => {
   };
 
   // Group questions by section
-  const questionsBySection: { [key: string]: any[] } = {};
-  const unsectionedQuestions: any[] = [];
+  const questionsBySection: { [key: string]: Question[] } = {};
+  const unsectionedQuestions: Question[] = [];
 
   questions.forEach(question => {
     if (question.section_id && sections.some(s => s.id === question.section_id)) {
@@ -80,7 +90,7 @@ const QuestionList: React.FC = () => {
     );
   }
 
-  const renderQuestionCard = (question: any, index: number, sectionQuestions: any[], sectionId?: string) => (
+  const renderQuestionCard = (question: Question, index: number, sectionQuestions: Question[], sectionId?: string) => (
     <QuestionCard
       key={question.id}
       question={question}
@@ -96,6 +106,10 @@ const QuestionList: React.FC = () => {
     />
   );
 
+  const hasSectionLogic = (sectionId: string) => {
+    return conditionalLogic[sectionId] && conditionalLogic[sectionId].length > 0;
+  };
+
   const sortedSections = [...sections].sort((a, b) => a.order_index - b.order_index);
 
   return (
@@ -105,6 +119,7 @@ const QuestionList: React.FC = () => {
         const sectionQuestions = questionsBySection[section.id] || [];
         const isFirstSection = sectionIndex === 0;
         const isLastSection = sectionIndex === sortedSections.length - 1;
+        const sectionHasLogic = hasSectionLogic(section.id);
         
         return (
           <div key={section.id} className="space-y-4 border rounded-lg p-4">
@@ -112,8 +127,22 @@ const QuestionList: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <GripVertical className="h-5 w-5 text-gray-400" />
                 <h2 className="text-xl font-semibold">{section.title}</h2>
+                {sectionHasLogic && (
+                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    Logic
+                  </span>
+                )}
               </div>
               <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={() => handleOpenSectionLogicDialog(section)}
+                >
+                  <Code className="h-4 w-4" />
+                  {sectionHasLogic ? 'Edit Logic' : 'Add Logic'}
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -169,7 +198,8 @@ const QuestionList: React.FC = () => {
         </div>
       )}
 
-      {selectedQuestion && (
+      {/* Conditional Logic Dialog for Questions or Sections */}
+      {(selectedQuestion || selectedSection) && (
         <>
           <ConditionalLogicDialog
             open={isLogicDialogOpen}
@@ -177,23 +207,32 @@ const QuestionList: React.FC = () => {
               if (!open) handleCloseLogicDialog();
               else setIsLogicDialogOpen(open);
             }}
-            question={selectedQuestion}
+            entityType={logicEntityType}
+            entity={logicEntityType === 'question' ? selectedQuestion! : selectedSection!}
             questions={questions}
             answerOptions={answerOptions}
-            existingLogic={conditionalLogic[selectedQuestion.id] || []}
+            existingLogic={
+              logicEntityType === 'question' && selectedQuestion
+                ? conditionalLogic[selectedQuestion.id] || []
+                : logicEntityType === 'section' && selectedSection
+                ? conditionalLogic[selectedSection.id] || []
+                : []
+            }
             onLogicUpdated={fetchQuestions}
           />
-          <EditQuestionDialog
-            open={isEditDialogOpen}
-            onOpenChange={(open) => {
-              if (!open) handleCloseEditDialog();
-              else setIsEditDialogOpen(open);
-            }}
-            question={selectedQuestion}
-            answerOptions={answerOptions[selectedQuestion.id] || []}
-            onQuestionUpdated={fetchQuestions}
-            sections={sections}
-          />
+          {selectedQuestion && (
+            <EditQuestionDialog
+              open={isEditDialogOpen}
+              onOpenChange={(open) => {
+                if (!open) handleCloseEditDialog();
+                else setIsEditDialogOpen(open);
+              }}
+              question={selectedQuestion}
+              answerOptions={answerOptions[selectedQuestion.id] || []}
+              onQuestionUpdated={fetchQuestions}
+              sections={sections}
+            />
+          )}
         </>
       )}
     </div>

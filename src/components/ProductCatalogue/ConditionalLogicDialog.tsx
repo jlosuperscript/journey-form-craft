@@ -28,6 +28,12 @@ type Question = {
   short_id?: string;
 };
 
+type Section = {
+  id: string;
+  title: string;
+  order_index: number;
+};
+
 type AnswerOption = {
   id: string;
   question_id: string;
@@ -38,7 +44,9 @@ type AnswerOption = {
 
 type ConditionalLogic = {
   id: string;
-  question_id: string;
+  question_id?: string;
+  section_id?: string;
+  entity_type: string;
   dependent_question_id: string;
   dependent_answer_value: string;
   not_condition?: boolean;
@@ -48,7 +56,8 @@ type ConditionalLogic = {
 type ConditionalLogicDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  question: Question;
+  entityType: 'question' | 'section';
+  entity: Question | Section;
   questions: Question[];
   answerOptions: {[key: string]: AnswerOption[]};
   existingLogic: ConditionalLogic[];
@@ -58,7 +67,8 @@ type ConditionalLogicDialogProps = {
 const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   open,
   onOpenChange,
-  question,
+  entityType,
+  entity,
   questions,
   answerOptions,
   existingLogic,
@@ -70,13 +80,13 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
-    // Filter out current question and questions without answer options
+    // Filter out current question (if entity is a question) and questions without answer options
     const filteredQuestions = questions.filter(q => 
-      q.id !== question.id && 
+      (entityType === 'section' || q.id !== (entity as Question).id) && 
       (q.type === 'select' || q.type === 'multiple_choice' || q.type === 'boolean')
     );
     setAvailableQuestions(filteredQuestions);
-  }, [question, questions]);
+  }, [entity, questions, entityType]);
 
   const handleAddLogic = async () => {
     if (!selectedDependentQuestion || !selectedAnswerValue) {
@@ -84,14 +94,23 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       return;
     }
 
+    const logicPayload = {
+      entity_type: entityType,
+      dependent_question_id: selectedDependentQuestion,
+      dependent_answer_value: selectedAnswerValue,
+      not_condition: conditionType === 'is_not'
+    };
+
+    // Add the ID of the entity based on entity type
+    if (entityType === 'question') {
+      logicPayload['question_id'] = (entity as Question).id;
+    } else {
+      logicPayload['section_id'] = (entity as Section).id;
+    }
+
     const { error } = await supabase
       .from('conditional_logic')
-      .insert({
-        question_id: question.id,
-        dependent_question_id: selectedDependentQuestion,
-        dependent_answer_value: selectedAnswerValue,
-        not_condition: conditionType === 'is_not'
-      });
+      .insert(logicPayload);
 
     if (error) {
       toast.error('Failed to add conditional logic');
@@ -140,15 +159,26 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     return options;
   };
 
+  // Get the entity name for display
+  const getEntityName = () => {
+    if (entityType === 'question') {
+      const question = entity as Question;
+      return `${question.short_id ? `[${question.short_id}] ` : ''}${question.text}`;
+    } else {
+      const section = entity as Section;
+      return section.title;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Conditional Logic for {question.short_id ? `[${question.short_id}] ` : ''}{question.text}
+            Conditional Logic for {entityType === 'question' ? 'Question' : 'Section'}: {getEntityName()}
           </DialogTitle>
           <DialogDescription>
-            Set when this question should be displayed based on answers to other questions
+            Set when this {entityType} should be displayed based on answers to questions
           </DialogDescription>
         </DialogHeader>
 
