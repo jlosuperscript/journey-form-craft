@@ -7,8 +7,7 @@ import QuestionCard from './QuestionCard';
 import { useQuestions } from '@/hooks/useQuestions';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
-import { Section } from '@/hooks/useQuestions';
+import { ChevronUp, ChevronDown, GripVertical, EyeOff } from 'lucide-react';
 
 const QuestionList: React.FC = () => {
   const {
@@ -16,6 +15,7 @@ const QuestionList: React.FC = () => {
     sections,
     answerOptions,
     conditionalLogic,
+    sectionConditionalLogic,
     loading,
     fetchQuestions,
     handleDeleteQuestion,
@@ -24,12 +24,21 @@ const QuestionList: React.FC = () => {
   } = useQuestions();
   
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
+  const [selectedSection, setSelectedSection] = useState<any>(null);
   const [isLogicDialogOpen, setIsLogicDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSectionLogicDialogOpen, setIsSectionLogicDialogOpen] = useState(false);
 
   const handleOpenLogicDialog = (question: any) => {
     setSelectedQuestion(question);
+    setSelectedSection(null);
     setIsLogicDialogOpen(true);
+  };
+
+  const handleOpenSectionLogicDialog = (section: any) => {
+    setSelectedSection(section);
+    setSelectedQuestion(null);
+    setIsSectionLogicDialogOpen(true);
   };
 
   const handleOpenEditDialog = (question: any) => {
@@ -41,6 +50,13 @@ const QuestionList: React.FC = () => {
     // Add a small delay before resetting state to ensure DOM cleanup
     setTimeout(() => {
       setIsLogicDialogOpen(false);
+    }, 50);
+  };
+
+  const handleCloseSectionLogicDialog = () => {
+    // Add a small delay before resetting state to ensure DOM cleanup
+    setTimeout(() => {
+      setIsSectionLogicDialogOpen(false);
     }, 50);
   };
 
@@ -105,6 +121,7 @@ const QuestionList: React.FC = () => {
         const sectionQuestions = questionsBySection[section.id] || [];
         const isFirstSection = sectionIndex === 0;
         const isLastSection = sectionIndex === sortedSections.length - 1;
+        const hasConditionalLogic = sectionConditionalLogic[section.id]?.length > 0;
         
         return (
           <div key={section.id} className="space-y-4 border rounded-lg p-4">
@@ -112,8 +129,24 @@ const QuestionList: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <GripVertical className="h-5 w-5 text-gray-400" />
                 <h2 className="text-xl font-semibold">{section.title}</h2>
+                {hasConditionalLogic && (
+                  <span 
+                    title="This section has display conditions" 
+                    className="inline-flex items-center ml-2 text-blue-500"
+                  >
+                    <EyeOff className="h-4 w-4" />
+                  </span>
+                )}
               </div>
               <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenSectionLogicDialog(section)}
+                  className="text-xs"
+                >
+                  {hasConditionalLogic ? "Edit Display Logic" : "Add Display Logic"}
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -195,6 +228,21 @@ const QuestionList: React.FC = () => {
             sections={sections}
           />
         </>
+      )}
+      
+      {selectedSection && (
+        <ConditionalLogicDialog
+          open={isSectionLogicDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) handleCloseSectionLogicDialog();
+            else setIsSectionLogicDialogOpen(open);
+          }}
+          section={selectedSection}
+          questions={questions}
+          answerOptions={answerOptions}
+          existingLogic={sectionConditionalLogic[selectedSection.id] || []}
+          onLogicUpdated={fetchQuestions}
+        />
       )}
     </div>
   );

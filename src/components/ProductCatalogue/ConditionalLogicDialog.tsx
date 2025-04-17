@@ -28,6 +28,12 @@ type Question = {
   short_id?: string;
 };
 
+type Section = {
+  id: string;
+  title: string;
+  order_index: number;
+};
+
 type AnswerOption = {
   id: string;
   question_id: string;
@@ -38,7 +44,8 @@ type AnswerOption = {
 
 type ConditionalLogic = {
   id: string;
-  question_id: string;
+  question_id?: string;
+  section_id?: string;
   dependent_question_id: string;
   dependent_answer_value: string;
   not_condition?: boolean;
@@ -48,7 +55,8 @@ type ConditionalLogic = {
 type ConditionalLogicDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  question: Question;
+  question?: Question;
+  section?: Section;
   questions: Question[];
   answerOptions: {[key: string]: AnswerOption[]};
   existingLogic: ConditionalLogic[];
@@ -59,6 +67,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   open,
   onOpenChange,
   question,
+  section,
   questions,
   answerOptions,
   existingLogic,
@@ -68,15 +77,20 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const [selectedAnswerValue, setSelectedAnswerValue] = useState('');
   const [conditionType, setConditionType] = useState<'is'|'is_not'>('is');
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
+  
+  const isSection = !!section;
+  const targetId = isSection ? section.id : question?.id;
+  const targetName = isSection ? section.title : question?.text;
+  const targetShortId = isSection ? null : question?.short_id;
 
   useEffect(() => {
-    // Filter out current question and questions without answer options
-    const filteredQuestions = questions.filter(q => 
-      q.id !== question.id && 
+    // Filter out current question (if applicable) and questions without answer options
+    let filteredQuestions = questions.filter(q => 
+      (isSection || q.id !== question?.id) && 
       (q.type === 'select' || q.type === 'multiple_choice' || q.type === 'boolean')
     );
     setAvailableQuestions(filteredQuestions);
-  }, [question, questions]);
+  }, [question, section, questions, isSection]);
 
   const handleAddLogic = async () => {
     if (!selectedDependentQuestion || !selectedAnswerValue) {
@@ -84,14 +98,23 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       return;
     }
 
+    const logicData = isSection 
+      ? {
+          section_id: targetId,
+          dependent_question_id: selectedDependentQuestion,
+          dependent_answer_value: selectedAnswerValue,
+          not_condition: conditionType === 'is_not'
+        }
+      : {
+          question_id: targetId,
+          dependent_question_id: selectedDependentQuestion,
+          dependent_answer_value: selectedAnswerValue,
+          not_condition: conditionType === 'is_not'
+        };
+
     const { error } = await supabase
       .from('conditional_logic')
-      .insert({
-        question_id: question.id,
-        dependent_question_id: selectedDependentQuestion,
-        dependent_answer_value: selectedAnswerValue,
-        not_condition: conditionType === 'is_not'
-      });
+      .insert(logicData);
 
     if (error) {
       toast.error('Failed to add conditional logic');
@@ -145,10 +168,10 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Conditional Logic for {question.short_id ? `[${question.short_id}] ` : ''}{question.text}
+            Conditional Logic for {isSection ? 'Section: ' : ''}{targetShortId ? `[${targetShortId}] ` : ''}{targetName}
           </DialogTitle>
           <DialogDescription>
-            Set when this question should be displayed based on answers to other questions
+            Set when this {isSection ? 'section' : 'question'} should be displayed based on answers to other questions
           </DialogDescription>
         </DialogHeader>
 

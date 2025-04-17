@@ -31,7 +31,8 @@ export type AnswerOption = {
 
 export type ConditionalLogic = {
   id: string;
-  question_id: string;
+  question_id?: string;
+  section_id?: string;
   dependent_question_id: string;
   dependent_answer_value: string;
   not_condition?: boolean;
@@ -43,6 +44,7 @@ export const useQuestions = () => {
   const [sections, setSections] = useState<Section[]>([]);
   const [answerOptions, setAnswerOptions] = useState<{[key: string]: AnswerOption[]}>({});
   const [conditionalLogic, setConditionalLogic] = useState<{[key: string]: ConditionalLogic[]}>({});
+  const [sectionConditionalLogic, setSectionConditionalLogic] = useState<{[key: string]: ConditionalLogic[]}>({});
   const [loading, setLoading] = useState(true);
 
   const generateShortId = () => {
@@ -141,8 +143,9 @@ export const useQuestions = () => {
         return;
       }
 
-      // Now fetch dependent questions separately
+      // Organize logic by question_id and section_id
       const logicByQuestion: {[key: string]: ConditionalLogic[]} = {};
+      const logicBySection: {[key: string]: ConditionalLogic[]} = {};
       
       for (const logic of logicData || []) {
         // Get dependent question details
@@ -163,13 +166,21 @@ export const useQuestions = () => {
           dependent_question: dependentQuestion
         };
 
-        if (!logicByQuestion[logic.question_id]) {
-          logicByQuestion[logic.question_id] = [];
+        if (logic.question_id) {
+          if (!logicByQuestion[logic.question_id]) {
+            logicByQuestion[logic.question_id] = [];
+          }
+          logicByQuestion[logic.question_id].push(logicWithDependent);
+        } else if (logic.section_id) {
+          if (!logicBySection[logic.section_id]) {
+            logicBySection[logic.section_id] = [];
+          }
+          logicBySection[logic.section_id].push(logicWithDependent);
         }
-        logicByQuestion[logic.question_id].push(logicWithDependent);
       }
       
       setConditionalLogic(logicByQuestion);
+      setSectionConditionalLogic(logicBySection);
     } catch (error) {
       console.error('Error in fetchQuestions:', error);
       toast.error('An error occurred while loading questions');
@@ -305,6 +316,7 @@ export const useQuestions = () => {
     sections,
     answerOptions,
     conditionalLogic,
+    sectionConditionalLogic,
     loading,
     fetchQuestions,
     createSection,
