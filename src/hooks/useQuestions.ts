@@ -70,10 +70,8 @@ export const useQuestions = () => {
   const fetchQuestions = async () => {
     setLoading(true);
     try {
-      // Fetch sections first
       await fetchSections();
       
-      // Fetch all questions
       const { data: questionsData, error: questionsError } = await supabase
         .from('questions')
         .select('*')
@@ -86,7 +84,6 @@ export const useQuestions = () => {
         return;
       }
 
-      // Check if any questions are missing short_id and update them
       const questionsToUpdate = questionsData?.filter(q => !q.short_id) || [];
       
       if (questionsToUpdate.length > 0) {
@@ -107,7 +104,6 @@ export const useQuestions = () => {
 
       setQuestions(questionsData || []);
 
-      // Fetch all answer options
       const { data: optionsData, error: optionsError } = await supabase
         .from('answer_options')
         .select('*')
@@ -120,7 +116,6 @@ export const useQuestions = () => {
         return;
       }
 
-      // Group options by question_id
       const optionsByQuestion: {[key: string]: AnswerOption[]} = {};
       optionsData?.forEach(option => {
         if (!optionsByQuestion[option.question_id]) {
@@ -130,7 +125,6 @@ export const useQuestions = () => {
       });
       setAnswerOptions(optionsByQuestion);
 
-      // Fetch conditional logic
       const { data: logicData, error: logicError } = await supabase
         .from('conditional_logic')
         .select('*');
@@ -142,12 +136,10 @@ export const useQuestions = () => {
         return;
       }
 
-      // Organize logic by question_id and section_id
       const logicByQuestion: {[key: string]: ConditionalLogic[]} = {};
       const logicBySection: {[key: string]: ConditionalLogic[]} = {};
       
       for (const logic of logicData || []) {
-        // Get dependent question details
         const { data: dependentQuestion, error: dependentError } = await supabase
           .from('questions')
           .select('*')
@@ -159,7 +151,6 @@ export const useQuestions = () => {
           continue;
         }
 
-        // Add the logic with the dependent question
         const logicWithDependent: ConditionalLogic = {
           ...logic,
           dependent_question: dependentQuestion
@@ -189,7 +180,6 @@ export const useQuestions = () => {
   };
 
   const createSection = async (title: string) => {
-    // Get the max order_index to place the new section at the end
     const maxOrderIndex = sections.length > 0 
       ? Math.max(...sections.map(s => s.order_index)) 
       : -1;
@@ -227,7 +217,6 @@ export const useQuestions = () => {
     const targetSection = sections[targetIndex];
     const currentSection = sections[currentIndex];
     
-    // Swap order_index values
     const { error: error1 } = await supabase
       .from('sections')
       .update({ order_index: targetSection.order_index })
@@ -265,7 +254,6 @@ export const useQuestions = () => {
   };
 
   const handleMoveQuestion = async (questionId: string, direction: 'up' | 'down', sectionId?: string) => {
-    // Filter questions by section if sectionId is provided
     let sectionQuestions = questions;
     if (sectionId) {
       sectionQuestions = questions.filter(q => q.section_id === sectionId);
@@ -285,7 +273,6 @@ export const useQuestions = () => {
     const targetQuestion = sectionQuestions[targetIndex];
     const currentQuestion = sectionQuestions[currentIndex];
     
-    // Swap order_index values
     const { error: error1 } = await supabase
       .from('questions')
       .update({ order_index: targetQuestion.order_index })
