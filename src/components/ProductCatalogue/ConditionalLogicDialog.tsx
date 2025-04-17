@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
@@ -286,7 +287,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
                   Reset
                 </Button>
                 <Button onClick={handleAddLogic}>
-                  {entityType === 'section' ? 'Show section logic' : 'Add Condition'}
+                  {entityType === 'section' ? 'Add section logic' : 'Add Condition'}
                 </Button>
               </div>
             </div>
