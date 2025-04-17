@@ -7,8 +7,9 @@ import QuestionCard from './QuestionCard';
 import { useQuestions, Section, Question } from '@/hooks/useQuestions';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, GripVertical, Code, AlertTriangle } from 'lucide-react';
+import { ChevronUp, ChevronDown, GripVertical, Code, AlertTriangle, ChevronRight } from 'lucide-react';
 import { Alert, AlertTitle } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 const QuestionList: React.FC = () => {
   const {
@@ -27,6 +28,7 @@ const QuestionList: React.FC = () => {
   const [isLogicDialogOpen, setIsLogicDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [logicEntityType, setLogicEntityType] = useState<'question' | 'section'>('question');
+  const [openSectionLogic, setOpenSectionLogic] = useState<{[key: string]: boolean}>({});
 
   const handleOpenLogicDialog = (question: Question) => {
     setSelectedQuestion(question);
@@ -57,6 +59,13 @@ const QuestionList: React.FC = () => {
     setTimeout(() => {
       setIsEditDialogOpen(false);
     }, 50);
+  };
+
+  const toggleSectionLogic = (sectionId: string) => {
+    setOpenSectionLogic(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
   };
 
   const questionsBySection: {
@@ -104,6 +113,41 @@ const QuestionList: React.FC = () => {
     return null;
   };
 
+  const renderSectionLogic = (sectionId: string) => {
+    const logicRules = conditionalLogic[sectionId] || [];
+    if (logicRules.length === 0) {
+      return <div className="text-sm text-gray-500 italic">No conditional logic defined for this section.</div>;
+    }
+
+    return (
+      <div className="space-y-2 pl-4 pr-2 py-2 bg-gray-50 rounded-md text-sm">
+        {logicRules.map((logic, index) => {
+          const dependentQuestion = questions.find(q => q.id === logic.dependent_question_id);
+          if (!dependentQuestion) return null;
+          
+          return (
+            <div key={logic.id} className="flex items-start border-b border-gray-200 pb-2 last:border-0 last:pb-0">
+              <div className="flex-1">
+                <span className="font-medium">
+                  {dependentQuestion.short_id ? `[${dependentQuestion.short_id}] ` : ''}
+                  {dependentQuestion.text}
+                </span>
+                <div className="text-gray-600">
+                  {logic.not_condition ? "is not" : "is"} <span className="font-medium">"{logic.dependent_answer_value}"</span>
+                </div>
+                {logic.banner_message && (
+                  <div className="mt-1 text-amber-600">
+                    <span className="font-medium">Banner message:</span> {logic.banner_message}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const sortedSections = [...sections].sort((a, b) => a.order_index - b.order_index);
 
   return <div className="space-y-8">
@@ -119,7 +163,19 @@ const QuestionList: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <GripVertical className="h-5 w-5 text-gray-400" />
                 <h2 className="text-xl font-semibold">{section.title}</h2>
-                {sectionHasLogic && <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Section Logic</span>}
+                {sectionHasLogic && (
+                  <Collapsible open={openSectionLogic[section.id]} onOpenChange={() => toggleSectionLogic(section.id)}>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" size="sm" className="ml-2 px-2 h-6 flex items-center gap-1 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-900 border-blue-200">
+                        <span className="text-xs">Section Logic</span>
+                        <ChevronRight className={`h-3 w-3 transition-transform ${openSectionLogic[section.id] ? 'rotate-90' : ''}`} />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-2">
+                      {renderSectionLogic(section.id)}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
               </div>
               <div className="flex space-x-2">
                 <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={() => handleOpenSectionLogicDialog(section)}>
