@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -36,6 +37,7 @@ export type ConditionalLogic = {
   dependent_question_id: string;
   dependent_answer_value: string;
   not_condition?: boolean;
+  banner_message?: string;
   dependent_question?: Question;
 };
 

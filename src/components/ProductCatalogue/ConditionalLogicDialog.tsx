@@ -17,8 +17,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Trash2 } from 'lucide-react';
+import { Trash2, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 type Question = {
   id: string;
@@ -52,6 +54,7 @@ type ConditionalLogic = {
   dependent_answer_value: string;
   not_condition?: boolean;
   dependent_question?: Question;
+  banner_message?: string;
 };
 
 type ConditionalLogicDialogProps = {
@@ -78,6 +81,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const [selectedDependentQuestion, setSelectedDependentQuestion] = useState('');
   const [selectedAnswerValue, setSelectedAnswerValue] = useState('');
   const [conditionType, setConditionType] = useState<'is'|'is_not'>('is');
+  const [bannerMessage, setBannerMessage] = useState('');
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
@@ -94,12 +98,16 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       return;
     }
 
+    // For sections, allow banner message to be set
+    const bannerMessageToSave = entityType === 'section' ? bannerMessage : null;
+
     const logicPayload = {
       id: uuidv4(),
       entity_type: entityType,
       dependent_question_id: selectedDependentQuestion,
       dependent_answer_value: selectedAnswerValue,
       not_condition: conditionType === 'is_not',
+      banner_message: bannerMessageToSave,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       question_id: entityType === 'question' ? (entity as Question).id : null,
@@ -141,6 +149,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     setSelectedDependentQuestion('');
     setSelectedAnswerValue('');
     setConditionType('is');
+    setBannerMessage('');
   };
 
   const getAnswerOptionsForQuestion = (questionId: string) => {
@@ -187,19 +196,26 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
                 const dependentQuestion = questions.find(q => q.id === logic.dependent_question_id);
                 return (
                   <div key={logic.id} className="flex items-center justify-between p-2 border rounded-md">
-                    <span className="text-sm">
-                      Show when{" "}
-                      <span className="font-medium">
-                        {dependentQuestion?.short_id ? `[${dependentQuestion.short_id}] ` : ''}
-                        {dependentQuestion?.text}
+                    <div className="flex flex-col">
+                      <span className="text-sm">
+                        Show when{" "}
+                        <span className="font-medium">
+                          {dependentQuestion?.short_id ? `[${dependentQuestion.short_id}] ` : ''}
+                          {dependentQuestion?.text}
+                        </span>
+                        {" "}
+                        <span className="font-medium">
+                          {logic.not_condition ? "is not" : "is"}
+                        </span>
+                        {" "}
+                        <span className="font-medium">"{logic.dependent_answer_value}"</span>
                       </span>
-                      {" "}
-                      <span className="font-medium">
-                        {logic.not_condition ? "is not" : "is"}
-                      </span>
-                      {" "}
-                      <span className="font-medium">"{logic.dependent_answer_value}"</span>
-                    </span>
+                      {entityType === 'section' && logic.banner_message && (
+                        <span className="text-xs mt-1 text-gray-500">
+                          Banner message: "{logic.banner_message}"
+                        </span>
+                      )}
+                    </div>
                     <Button 
                       type="button" 
                       variant="ghost" 
@@ -277,6 +293,21 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
                     </Select>
                   </div>
                 </>
+              )}
+
+              {entityType === 'section' && selectedDependentQuestion && selectedAnswerValue && (
+                <div>
+                  <label className="block mb-2 text-sm">Banner Message (optional)</label>
+                  <Textarea 
+                    placeholder="This section is only visible when specific conditions are met..."
+                    value={bannerMessage} 
+                    onChange={(e) => setBannerMessage(e.target.value)}
+                    className="resize-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This message will be shown when the section is hidden due to conditions not being met.
+                  </p>
+                </div>
               )}
 
               <div className="flex justify-end space-x-2 pt-2">
