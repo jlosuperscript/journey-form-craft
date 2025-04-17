@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+
 type Question = {
   id: string;
   text: string;
@@ -17,11 +19,13 @@ type Question = {
   order_index: number;
   short_id?: string;
 };
+
 type Section = {
   id: string;
   title: string;
   order_index: number;
 };
+
 type AnswerOption = {
   id: string;
   question_id: string;
@@ -29,6 +33,7 @@ type AnswerOption = {
   value: string;
   order_index: number;
 };
+
 type ConditionalLogic = {
   id: string;
   question_id?: string;
@@ -40,6 +45,7 @@ type ConditionalLogic = {
   dependent_question?: Question;
   banner_message?: string;
 };
+
 type ConditionalLogicDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -52,6 +58,7 @@ type ConditionalLogicDialogProps = {
   existingLogic: ConditionalLogic[];
   onLogicUpdated: () => void;
 };
+
 const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   open,
   onOpenChange,
@@ -70,6 +77,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const [currentBannerMessage, setCurrentBannerMessage] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isAddingCondition, setIsAddingCondition] = useState(false);
+
   useEffect(() => {
     const filteredQuestions = questions.filter(q => (entityType === 'section' || q.id !== (entity as Question).id) && (q.type === 'select' || q.type === 'multiple_choice' || q.type === 'boolean'));
     setAvailableQuestions(filteredQuestions);
@@ -85,68 +93,88 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       }
     }
   }, [entity, questions, entityType, existingLogic]);
+
   const handleAddLogic = async () => {
     if (!selectedDependentQuestion || !selectedAnswerValue) {
       toast.error('Please select a question and answer value');
       return;
     }
-    const logicPayload = {
+    
+    // Create the base payload without the banner_message field
+    const logicPayload: any = {
       id: uuidv4(),
       entity_type: entityType,
       dependent_question_id: selectedDependentQuestion,
       dependent_answer_value: selectedAnswerValue,
       not_condition: conditionType === 'is_not',
-      banner_message: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       question_id: entityType === 'question' ? (entity as Question).id : null,
       section_id: entityType === 'section' ? (entity as Section).id : null
     };
+
+    // Add banner_message separately to avoid TypeScript errors
+    if (entityType === 'section') {
+      // Using the any type to allow adding the banner_message property
+      logicPayload.banner_message = null;
+    }
+
     const {
       error
     } = await supabase.from('conditional_logic').insert(logicPayload);
+
     if (error) {
       toast.error('Failed to add conditional logic');
       console.error(error);
       return;
     }
+
     toast.success('Conditional logic added successfully');
     resetConditionForm();
     setIsAddingCondition(false);
     onLogicUpdated();
   };
+
   const handleDeleteLogic = async (logicId: string) => {
     const {
       error
     } = await supabase.from('conditional_logic').delete().eq('id', logicId);
+
     if (error) {
       toast.error('Failed to delete conditional logic');
       console.error(error);
       return;
     }
+
     toast.success('Conditional logic removed');
     onLogicUpdated();
   };
+
   const handleSaveChanges = async () => {
     // If there are existing logic rules and we're dealing with a section
     if (entityType === 'section') {
       // Update banner message in all existing logic entries for this section
-      for (const logic of existingLogic) {
-        const {
-          error
-        } = await supabase.from('conditional_logic').update({
-          banner_message: bannerMessage
-        }).eq('id', logic.id);
-        if (error) {
-          toast.error('Failed to update banner message');
-          console.error(error);
-          return;
+      if (existingLogic.length > 0) {
+        for (const logic of existingLogic) {
+          const updatePayload: any = {
+            banner_message: bannerMessage
+          };
+
+          const {
+            error
+          } = await supabase.from('conditional_logic').update(updatePayload).eq('id', logic.id);
+          
+          if (error) {
+            toast.error('Failed to update banner message');
+            console.error(error);
+            return;
+          }
         }
       }
 
       // If there's no logic but we want to save a banner message, create a default logic
       if (existingLogic.length === 0 && bannerMessage) {
-        const defaultLogicPayload = {
+        const defaultLogicPayload: any = {
           id: uuidv4(),
           entity_type: 'section',
           dependent_question_id: null,
@@ -157,9 +185,11 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
           updated_at: new Date().toISOString(),
           section_id: (entity as Section).id
         };
+
         const {
           error
         } = await supabase.from('conditional_logic').insert(defaultLogicPayload);
+
         if (error) {
           toast.error('Failed to create banner message');
           console.error(error);
@@ -167,23 +197,27 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
         }
       }
     }
+    
     toast.success('Changes saved successfully');
     setCurrentBannerMessage(bannerMessage);
     setHasUnsavedChanges(false);
     onLogicUpdated();
     onOpenChange(false);
   };
+
   const resetConditionForm = () => {
     setSelectedDependentQuestion('');
     setSelectedAnswerValue('');
     setConditionType('is');
   };
+
   const resetAllChanges = () => {
     resetConditionForm();
     setBannerMessage(currentBannerMessage);
     setHasUnsavedChanges(false);
     setIsAddingCondition(false);
   };
+
   const getAnswerOptionsForQuestion = (questionId: string) => {
     const options = answerOptions[questionId] || [];
     const questionType = questions.find(q => q.id === questionId)?.type;
@@ -200,6 +234,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     }
     return options;
   };
+
   const getEntityName = () => {
     if (entityType === 'question') {
       const question = entity as Question;
@@ -209,6 +244,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       return section.title;
     }
   };
+
   useEffect(() => {
     if (bannerMessage !== currentBannerMessage) {
       setHasUnsavedChanges(true);
@@ -216,6 +252,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       setHasUnsavedChanges(false);
     }
   }, [bannerMessage, currentBannerMessage]);
+
   return <Dialog open={open} onOpenChange={newOpen => {
     if (!newOpen && hasUnsavedChanges) {
       if (confirm("You have unsaved changes. Are you sure you want to close?")) {
@@ -367,4 +404,5 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       </DialogContent>
     </Dialog>;
 };
+
 export default ConditionalLogicDialog;
