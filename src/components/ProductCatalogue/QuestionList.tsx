@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import ConditionalLogicDialog from './ConditionalLogicDialog';
+import ConditionalLogicDialog from './ConditionalLogic/ConditionalLogicDialog';
 import EditQuestionDialog from './EditQuestionDialog';
 import QuestionCard from './QuestionCard';
 import { useQuestions, Section, Question } from '@/hooks/useQuestions';
