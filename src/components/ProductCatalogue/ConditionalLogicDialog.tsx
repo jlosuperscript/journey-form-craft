@@ -1,20 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -23,7 +9,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-
 type Question = {
   id: string;
   text: string;
@@ -32,13 +17,11 @@ type Question = {
   order_index: number;
   short_id?: string;
 };
-
 type Section = {
   id: string;
   title: string;
   order_index: number;
 };
-
 type AnswerOption = {
   id: string;
   question_id: string;
@@ -46,7 +29,6 @@ type AnswerOption = {
   value: string;
   order_index: number;
 };
-
 type ConditionalLogic = {
   id: string;
   question_id?: string;
@@ -58,18 +40,18 @@ type ConditionalLogic = {
   dependent_question?: Question;
   banner_message?: string;
 };
-
 type ConditionalLogicDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entityType: 'question' | 'section';
   entity: Question | Section;
   questions: Question[];
-  answerOptions: {[key: string]: AnswerOption[]};
+  answerOptions: {
+    [key: string]: AnswerOption[];
+  };
   existingLogic: ConditionalLogic[];
   onLogicUpdated: () => void;
 };
-
 const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   open,
   onOpenChange,
@@ -82,20 +64,16 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
 }) => {
   const [selectedDependentQuestion, setSelectedDependentQuestion] = useState('');
   const [selectedAnswerValue, setSelectedAnswerValue] = useState('');
-  const [conditionType, setConditionType] = useState<'is'|'is_not'>('is');
+  const [conditionType, setConditionType] = useState<'is' | 'is_not'>('is');
   const [bannerMessage, setBannerMessage] = useState('');
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
   const [currentBannerMessage, setCurrentBannerMessage] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isAddingCondition, setIsAddingCondition] = useState(false);
-
   useEffect(() => {
-    const filteredQuestions = questions.filter(q => 
-      (entityType === 'section' || q.id !== (entity as Question).id) && 
-      (q.type === 'select' || q.type === 'multiple_choice' || q.type === 'boolean')
-    );
+    const filteredQuestions = questions.filter(q => (entityType === 'section' || q.id !== (entity as Question).id) && (q.type === 'select' || q.type === 'multiple_choice' || q.type === 'boolean'));
     setAvailableQuestions(filteredQuestions);
-    
+
     // Initialize banner message from existing logic
     if (entityType === 'section' && existingLogic.length > 0) {
       for (const logic of existingLogic) {
@@ -107,13 +85,11 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       }
     }
   }, [entity, questions, entityType, existingLogic]);
-
   const handleAddLogic = async () => {
     if (!selectedDependentQuestion || !selectedAnswerValue) {
       toast.error('Please select a question and answer value');
       return;
     }
-
     const logicPayload = {
       id: uuidv4(),
       entity_type: entityType,
@@ -126,56 +102,48 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       question_id: entityType === 'question' ? (entity as Question).id : null,
       section_id: entityType === 'section' ? (entity as Section).id : null
     };
-
-    const { error } = await supabase
-      .from('conditional_logic')
-      .insert(logicPayload);
-
+    const {
+      error
+    } = await supabase.from('conditional_logic').insert(logicPayload);
     if (error) {
       toast.error('Failed to add conditional logic');
       console.error(error);
       return;
     }
-
     toast.success('Conditional logic added successfully');
     resetConditionForm();
     setIsAddingCondition(false);
     onLogicUpdated();
   };
-
   const handleDeleteLogic = async (logicId: string) => {
-    const { error } = await supabase
-      .from('conditional_logic')
-      .delete()
-      .eq('id', logicId);
-
+    const {
+      error
+    } = await supabase.from('conditional_logic').delete().eq('id', logicId);
     if (error) {
       toast.error('Failed to delete conditional logic');
       console.error(error);
       return;
     }
-
     toast.success('Conditional logic removed');
     onLogicUpdated();
   };
-
   const handleSaveChanges = async () => {
     // If there are existing logic rules and we're dealing with a section
     if (entityType === 'section') {
       // Update banner message in all existing logic entries for this section
       for (const logic of existingLogic) {
-        const { error } = await supabase
-          .from('conditional_logic')
-          .update({ banner_message: bannerMessage })
-          .eq('id', logic.id);
-        
+        const {
+          error
+        } = await supabase.from('conditional_logic').update({
+          banner_message: bannerMessage
+        }).eq('id', logic.id);
         if (error) {
           toast.error('Failed to update banner message');
           console.error(error);
           return;
         }
       }
-      
+
       // If there's no logic but we want to save a banner message, create a default logic
       if (existingLogic.length === 0 && bannerMessage) {
         const defaultLogicPayload = {
@@ -189,11 +157,9 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
           updated_at: new Date().toISOString(),
           section_id: (entity as Section).id
         };
-
-        const { error } = await supabase
-          .from('conditional_logic')
-          .insert(defaultLogicPayload);
-
+        const {
+          error
+        } = await supabase.from('conditional_logic').insert(defaultLogicPayload);
         if (error) {
           toast.error('Failed to create banner message');
           console.error(error);
@@ -201,41 +167,39 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
         }
       }
     }
-    
     toast.success('Changes saved successfully');
     setCurrentBannerMessage(bannerMessage);
     setHasUnsavedChanges(false);
     onLogicUpdated();
     onOpenChange(false);
   };
-
   const resetConditionForm = () => {
     setSelectedDependentQuestion('');
     setSelectedAnswerValue('');
     setConditionType('is');
   };
-
   const resetAllChanges = () => {
     resetConditionForm();
     setBannerMessage(currentBannerMessage);
     setHasUnsavedChanges(false);
     setIsAddingCondition(false);
   };
-
   const getAnswerOptionsForQuestion = (questionId: string) => {
     const options = answerOptions[questionId] || [];
     const questionType = questions.find(q => q.id === questionId)?.type;
-    
     if (questionType === 'boolean') {
-      return [
-        { id: 'yes', value: 'yes', text: 'Yes' },
-        { id: 'no', value: 'no', text: 'No' }
-      ];
+      return [{
+        id: 'yes',
+        value: 'yes',
+        text: 'Yes'
+      }, {
+        id: 'no',
+        value: 'no',
+        text: 'No'
+      }];
     }
-    
     return options;
   };
-
   const getEntityName = () => {
     if (entityType === 'question') {
       const question = entity as Question;
@@ -245,7 +209,6 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       return section.title;
     }
   };
-
   useEffect(() => {
     if (bannerMessage !== currentBannerMessage) {
       setHasUnsavedChanges(true);
@@ -253,17 +216,15 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       setHasUnsavedChanges(false);
     }
   }, [bannerMessage, currentBannerMessage]);
-
-  return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      if (!newOpen && hasUnsavedChanges) {
-        if (confirm("You have unsaved changes. Are you sure you want to close?")) {
-          onOpenChange(newOpen);
-        }
-      } else {
+  return <Dialog open={open} onOpenChange={newOpen => {
+    if (!newOpen && hasUnsavedChanges) {
+      if (confirm("You have unsaved changes. Are you sure you want to close?")) {
         onOpenChange(newOpen);
       }
-    }}>
+    } else {
+      onOpenChange(newOpen);
+    }
+  }}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
@@ -275,45 +236,31 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
         </DialogHeader>
 
         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-          {entityType === 'section' && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Banner Message:</h3>
+          {entityType === 'section' && <div className="space-y-2">
+              <h3 className="text-sm font-medium">Warning Banner:</h3>
               <div className="space-y-2">
-                <Textarea 
-                  placeholder="This section is only visible when specific conditions are met..."
-                  value={bannerMessage} 
-                  onChange={(e) => setBannerMessage(e.target.value)}
-                  className="resize-none"
-                />
+                <Textarea placeholder="This section is only visible when specific conditions are met..." value={bannerMessage} onChange={e => setBannerMessage(e.target.value)} className="resize-none" />
                 <p className="text-xs text-gray-500">
                   This message will be shown when the section is hidden due to conditions not being met.
                 </p>
               </div>
-            </div>
-          )}
+            </div>}
 
           <Separator />
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Conditions:</h3>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setIsAddingCondition(true)}
-                className="flex items-center gap-1"
-              >
+              <Button variant="outline" size="sm" onClick={() => setIsAddingCondition(true)} className="flex items-center gap-1">
                 <Plus className="h-4 w-4" />
                 Add Condition
               </Button>
             </div>
 
-            {existingLogic.length > 0 ? (
-              <div className="space-y-2">
-                {existingLogic.map((logic) => {
-                  const dependentQuestion = questions.find(q => q.id === logic.dependent_question_id);
-                  return (
-                    <div key={logic.id} className="flex items-center justify-between p-2 border rounded-md">
+            {existingLogic.length > 0 ? <div className="space-y-2">
+                {existingLogic.map(logic => {
+              const dependentQuestion = questions.find(q => q.id === logic.dependent_question_id);
+              return <div key={logic.id} className="flex items-center justify-between p-2 border rounded-md">
                       <div className="flex flex-col">
                         <span className="text-sm">
                           Show when{" "}
@@ -329,59 +276,40 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
                           <span className="font-medium">"{logic.dependent_answer_value}"</span>
                         </span>
                       </div>
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleDeleteLogic(logic.id)}
-                      >
+                      <Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteLogic(logic.id)}>
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-sm text-gray-500 p-4 text-center border border-dashed rounded-md">
+                    </div>;
+            })}
+              </div> : <div className="text-sm text-gray-500 p-4 text-center border border-dashed rounded-md">
                 No conditions set yet. Add a condition to determine when this {entityType} should be visible.
-              </div>
-            )}
+              </div>}
 
-            {isAddingCondition && (
-              <div className="space-y-4 p-4 border rounded-md bg-gray-50">
+            {isAddingCondition && <div className="space-y-4 p-4 border rounded-md bg-gray-50">
                 <h4 className="text-sm font-semibold">Add New Condition</h4>
                 
                 <div className="space-y-4">
                   <div>
                     <label className="block mb-2 text-sm">Question</label>
-                    <Select 
-                      value={selectedDependentQuestion} 
-                      onValueChange={(value) => {
-                        setSelectedDependentQuestion(value);
-                        setSelectedAnswerValue('');
-                      }}
-                    >
+                    <Select value={selectedDependentQuestion} onValueChange={value => {
+                  setSelectedDependentQuestion(value);
+                  setSelectedAnswerValue('');
+                }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a question" />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableQuestions.map((q) => (
-                          <SelectItem key={q.id} value={q.id}>
+                        {availableQuestions.map(q => <SelectItem key={q.id} value={q.id}>
                             {q.short_id ? `[${q.short_id}] ` : ''}{q.text}
-                          </SelectItem>
-                        ))}
+                          </SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {selectedDependentQuestion && (
-                    <>
+                  {selectedDependentQuestion && <>
                       <div>
                         <label className="block mb-2 text-sm">Condition</label>
-                        <Select 
-                          value={conditionType} 
-                          onValueChange={(value) => setConditionType(value as 'is' | 'is_not')}
-                        >
+                        <Select value={conditionType} onValueChange={value => setConditionType(value as 'is' | 'is_not')}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select condition type" />
                           </SelectTrigger>
@@ -394,33 +322,24 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
 
                       <div>
                         <label className="block mb-2 text-sm">Answer Value</label>
-                        <Select 
-                          value={selectedAnswerValue} 
-                          onValueChange={setSelectedAnswerValue}
-                        >
+                        <Select value={selectedAnswerValue} onValueChange={setSelectedAnswerValue}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select an answer value" />
                           </SelectTrigger>
                           <SelectContent>
-                            {getAnswerOptionsForQuestion(selectedDependentQuestion).map((option) => (
-                              <SelectItem key={option.id} value={option.value}>
+                            {getAnswerOptionsForQuestion(selectedDependentQuestion).map(option => <SelectItem key={option.id} value={option.value}>
                                 {option.text}
-                              </SelectItem>
-                            ))}
+                              </SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
-                    </>
-                  )}
+                    </>}
 
                   <div className="flex justify-end space-x-2 pt-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        resetConditionForm();
-                        setIsAddingCondition(false);
-                      }}
-                    >
+                    <Button variant="outline" onClick={() => {
+                  resetConditionForm();
+                  setIsAddingCondition(false);
+                }}>
                       Cancel
                     </Button>
                     <Button onClick={handleAddLogic}>
@@ -428,8 +347,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
                     </Button>
                   </div>
                 </div>
-              </div>
-            )}
+              </div>}
           </div>
         </div>
 
@@ -441,17 +359,12 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSaveChanges}
-              disabled={!hasUnsavedChanges && existingLogic.length === 0}
-            >
+            <Button onClick={handleSaveChanges} disabled={!hasUnsavedChanges && existingLogic.length === 0}>
               Save
             </Button>
           </div>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>;
 };
-
 export default ConditionalLogicDialog;
