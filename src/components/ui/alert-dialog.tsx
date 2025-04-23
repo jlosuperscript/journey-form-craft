@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
@@ -53,12 +52,6 @@ const AlertDialogContent = React.forwardRef<
           className
         )}
         onEscapeKeyDown={(event) => {
-          if (!isMountedRef.current) event.preventDefault()
-        }}
-        onPointerDownOutside={(event) => {
-          if (!isMountedRef.current) event.preventDefault()
-        }}
-        onInteractOutside={(event) => {
           if (!isMountedRef.current) event.preventDefault()
         }}
         {...props}
