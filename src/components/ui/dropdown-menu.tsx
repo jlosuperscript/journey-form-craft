@@ -102,22 +102,29 @@ const DropdownMenu = React.forwardRef<
       {typeof children === 'function' 
         ? children({ 
             open, 
-            setOpen: (newOpen) => {
+            setOpen: (newOpenState) => {
               // Add delay when closing to ensure animation completes
-              if (open && !newOpen) {
+              if (open && typeof newOpenState === 'boolean' && !newOpenState) {
                 setIsTransitioning(true)
                 setTimeout(() => {
-                  setOpen(newOpen)
+                  setOpen(false)
                   // Notify external handler if provided
                   if (externalOnOpenChange) {
-                    externalOnOpenChange(newOpen)
+                    externalOnOpenChange(false)
                   }
                 }, 100)
               } else {
-                setOpen(newOpen)
-                // Notify external handler if provided
-                if (externalOnOpenChange) {
-                  externalOnOpenChange(newOpen)
+                // For boolean values, set directly
+                if (typeof newOpenState === 'boolean') {
+                  setOpen(newOpenState)
+                  // Notify external handler if provided
+                  if (externalOnOpenChange) {
+                    externalOnOpenChange(newOpenState)
+                  }
+                } else {
+                  // For function updaters, use internal state update
+                  setOpen(newOpenState)
+                  // We can't notify external handler here as we don't know the next value
                 }
               }
             }, 
