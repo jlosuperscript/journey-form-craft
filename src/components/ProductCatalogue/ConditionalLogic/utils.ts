@@ -1,5 +1,5 @@
 
-import { Question } from "@/hooks/useQuestions";
+import { Question, Section } from "@/hooks/useQuestions";
 import { AnswerOption } from "@/hooks/useQuestions";
 import { EntityType } from "./types";
 import { toast } from "sonner";
