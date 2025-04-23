@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,12 +7,10 @@ import { Plus } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
 import { Question } from "@/hooks/useQuestions";
 
-// Import sub-components
 import BannerMessageField from './BannerMessageField';
 import LogicConditionForm from './LogicConditionForm';
 import ExistingLogicList from './ExistingLogicList';
 
-// Import types and utils
 import { ConditionalLogicDialogProps, EntityType } from './types';
 import { 
   getEntityName, 
@@ -42,7 +39,21 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isAddingCondition, setIsAddingCondition] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [dialogInternal, setDialogInternal] = useState(open);
   
+  useEffect(() => {
+    if (open) {
+      setDialogInternal(true);
+    }
+  }, [open]);
+
+  const handleDialogClose = () => {
+    setDialogInternal(false);
+    setTimeout(() => {
+      onOpenChange(false);
+    }, 300);
+  };
+
   useEffect(() => {
     const filteredQuestions = questions.filter(q => (
       (entityType === 'section' || q.id !== (entity as Question).id) && 
@@ -50,7 +61,6 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     ));
     setAvailableQuestions(filteredQuestions);
 
-    // Initialize banner message from existing logic
     if (entityType === 'section' && existingLogic.length > 0) {
       for (const logic of existingLogic) {
         if (logic.banner_message) {
@@ -105,12 +115,10 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     setIsSaving(true);
     try {
       if (entityType === 'section') {
-        // If there are existing logic rows for this section, update the first one with the banner message
         if (existingLogic.length > 0) {
           const firstLogic = existingLogic[0];
           await updateBannerMessageInSupabase(firstLogic.id, bannerMessage);
         } else if (bannerMessage) {
-          // If there's no existing logic but we have a banner message, create a dummy logic entry
           await createDummyLogicForBanner(
             (entity as any).id,
             questions.length > 0 ? questions[0].id : '', 
@@ -123,7 +131,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       setHasUnsavedChanges(false);
       toast.success('Changes saved successfully');
       onLogicUpdated();
-      onOpenChange(false);
+      handleDialogClose();
     } catch (error) {
       console.error('Error saving changes:', error);
       toast.error('Failed to save changes');
@@ -149,18 +157,23 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     }
   }, [bannerMessage, currentBannerMessage]);
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && hasUnsavedChanges) {
+      if (confirm("You have unsaved changes. Are you sure you want to close?")) {
+        handleDialogClose();
+      }
+    } else if (!newOpen) {
+      handleDialogClose();
+    } else {
+      setDialogInternal(true);
+      onOpenChange(true);
+    }
+  };
+
   return (
     <Dialog 
-      open={open} 
-      onOpenChange={newOpen => {
-        if (!newOpen && hasUnsavedChanges) {
-          if (confirm("You have unsaved changes. Are you sure you want to close?")) {
-            onOpenChange(newOpen);
-          }
-        } else {
-          onOpenChange(newOpen);
-        }
-      }}
+      open={dialogInternal} 
+      onOpenChange={handleOpenChange}
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
@@ -218,7 +231,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
             Reset
           </Button>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={handleDialogClose}>
               Cancel
             </Button>
             <Button onClick={handleSaveChanges} disabled={isSaving}>
