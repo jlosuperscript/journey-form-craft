@@ -12,9 +12,23 @@ const ProductCatalogue: React.FC = () => {
   const [isCreateSectionDialogOpen, setIsCreateSectionDialogOpen] = useState(false);
   const { sections, fetchQuestions } = useQuestions();
 
+  // Add delay to opening dialogs to ensure proper timing
+  const handleOpenDialog = (dialogType: 'question' | 'section') => {
+    // Add a small delay before opening to ensure any previous modal is closed
+    setTimeout(() => {
+      if (dialogType === 'question') {
+        setIsCreateDialogOpen(true);
+      } else {
+        setIsCreateSectionDialogOpen(true);
+      }
+    }, 10);
+  };
+
   const handleQuestionCreated = () => {
-    // Refresh questions immediately after creation
-    fetchQuestions();
+    // Add a small delay before refreshing to ensure proper timing
+    setTimeout(() => {
+      fetchQuestions();
+    }, 300);
   };
 
   return (
@@ -23,7 +37,7 @@ const ProductCatalogue: React.FC = () => {
         <h1 className="text-3xl font-bold">Product Catalogue</h1>
         <div className="flex space-x-3">
           <Button 
-            onClick={() => setIsCreateSectionDialogOpen(true)}
+            onClick={() => handleOpenDialog('section')}
             className="flex items-center gap-2"
             variant="outline"
           >
@@ -31,7 +45,7 @@ const ProductCatalogue: React.FC = () => {
             Create Section
           </Button>
           <Button 
-            onClick={() => setIsCreateDialogOpen(true)}
+            onClick={() => handleOpenDialog('question')}
             className="flex items-center gap-2"
           >
             <Plus className="h-5 w-5" />

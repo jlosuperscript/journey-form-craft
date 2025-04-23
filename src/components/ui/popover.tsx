@@ -18,9 +18,18 @@ const PopoverContent = React.forwardRef<
   const isMountedRef = React.useRef(false)
   
   React.useEffect(() => {
-    isMountedRef.current = true
+    // Set flag to true when mounted with a small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      isMountedRef.current = true
+    }, 10)
+    
+    // Cleanup function that runs when unmounted
     return () => {
-      isMountedRef.current = false
+      clearTimeout(timer)
+      // Add small delay to ensure proper cleanup
+      setTimeout(() => {
+        isMountedRef.current = false
+      }, 10)
     }
   }, [])
 

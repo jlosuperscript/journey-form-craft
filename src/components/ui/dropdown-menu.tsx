@@ -60,11 +60,19 @@ const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
 >(({ className, sideOffset = 4, ...props }, ref) => {
+  // Create a ref to track if component is mounted
   const isMountedRef = React.useRef(true)
   
   React.useEffect(() => {
+    // Set flag to true when mounted
+    isMountedRef.current = true
+    
+    // Cleanup function that runs when unmounted
     return () => {
-      isMountedRef.current = false
+      // Add small delay to ensure other cleanup operations complete first
+      setTimeout(() => {
+        isMountedRef.current = false
+      }, 10)
     }
   }, [])
   
@@ -109,6 +117,22 @@ const DropdownMenu = React.forwardRef<
 >(({ children, ...props }, _ref) => {
   const [open, setOpen] = React.useState(false)
   const preventCloseRef = React.useRef(false)
+  
+  // Track when menu has actually closed to prevent interaction issues
+  const [fullyTransitioned, setFullyTransitioned] = React.useState(true)
+  
+  // Handle state transition with proper timing
+  React.useEffect(() => {
+    if (!open) {
+      // Add a delay to match animation duration before marking as fully closed
+      const timer = setTimeout(() => {
+        setFullyTransitioned(true)
+      }, 250) // Animation duration from Tailwind classes
+      return () => clearTimeout(timer)
+    } else {
+      setFullyTransitioned(false)
+    }
+  }, [open])
 
   return (
     <DropdownMenuRoot
@@ -118,7 +142,15 @@ const DropdownMenu = React.forwardRef<
           preventCloseRef.current = false
           return
         }
-        setOpen(nextOpen)
+        
+        // If closing, schedule the state change
+        if (!nextOpen && open) {
+          setTimeout(() => {
+            setOpen(false)
+          }, 10)
+        } else {
+          setOpen(nextOpen)
+        }
       }}
       {...props}
     >

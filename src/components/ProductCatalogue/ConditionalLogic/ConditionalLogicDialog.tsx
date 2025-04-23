@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -41,17 +42,20 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [dialogInternal, setDialogInternal] = useState(open);
   
+  // Use effect to synchronize the internal state with the external open prop
   useEffect(() => {
     if (open) {
       setDialogInternal(true);
     }
   }, [open]);
-
+  
+  // Handle dialog close with cleanup timeout
   const handleDialogClose = () => {
     setDialogInternal(false);
+    // Add timeout to ensure dialog is fully closed before updating parent state
     setTimeout(() => {
       onOpenChange(false);
-    }, 300);
+    }, 300); // Adjust timing to match animation duration
   };
 
   useEffect(() => {

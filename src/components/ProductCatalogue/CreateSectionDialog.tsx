@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -27,6 +27,21 @@ const CreateSectionDialog: React.FC<CreateSectionDialogProps> = ({
   const [title, setTitle] = useState('');
   const { createSection } = useQuestions();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dialogInternal, setDialogInternal] = useState(open);
+  
+  useEffect(() => {
+    if (open) {
+      setDialogInternal(true);
+    }
+  }, [open]);
+  
+  const handleDialogClose = () => {
+    setDialogInternal(false);
+    // Add timeout to ensure dialog is fully closed before updating parent state
+    setTimeout(() => {
+      onOpenChange(false);
+    }, 300); // Adjust timing to match animation duration
+  };
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -39,7 +54,7 @@ const CreateSectionDialog: React.FC<CreateSectionDialogProps> = ({
       await createSection(title);
       toast.success('Section created successfully');
       setTitle('');
-      onOpenChange(false);
+      handleDialogClose();
       onSectionCreated();
     } catch (error) {
       console.error('Error creating section:', error);
@@ -50,7 +65,14 @@ const CreateSectionDialog: React.FC<CreateSectionDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={dialogInternal} onOpenChange={(newOpen) => {
+      if (!newOpen) {
+        handleDialogClose();
+      } else {
+        setDialogInternal(true);
+        onOpenChange(true);
+      }
+    }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create New Section</DialogTitle>
@@ -73,7 +95,7 @@ const CreateSectionDialog: React.FC<CreateSectionDialogProps> = ({
         <DialogFooter>
           <Button 
             variant="outline" 
-            onClick={() => onOpenChange(false)}
+            onClick={handleDialogClose}
             disabled={isSubmitting}
           >
             Cancel
