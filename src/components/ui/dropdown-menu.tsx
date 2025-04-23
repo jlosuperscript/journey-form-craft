@@ -5,7 +5,8 @@ import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const DropdownMenu = DropdownMenuPrimitive.Root
+// Original primitive component (not exported directly)
+const DropdownMenuRoot = DropdownMenuPrimitive.Root
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
 
@@ -95,8 +96,8 @@ const DropdownMenuContent = React.forwardRef<
 })
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
 
-// Custom wrapper that manages state
-const DropdownMenuWithState = React.forwardRef<
+// Custom wrapper that manages state - this will be our exported DropdownMenu
+const DropdownMenu = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root> & {
     children: React.ReactNode | ((props: {
@@ -110,7 +111,7 @@ const DropdownMenuWithState = React.forwardRef<
   const preventCloseRef = React.useRef(false)
 
   return (
-    <DropdownMenu
+    <DropdownMenuRoot
       open={open}
       onOpenChange={(nextOpen) => {
         if (preventCloseRef.current) {
@@ -128,10 +129,10 @@ const DropdownMenuWithState = React.forwardRef<
             preventClose: () => { preventCloseRef.current = true } 
           }) 
         : children}
-    </DropdownMenu>
+    </DropdownMenuRoot>
   )
 })
-DropdownMenuWithState.displayName = "DropdownMenuWithState"
+DropdownMenu.displayName = "DropdownMenu"
 
 const DropdownMenuItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Item>,
@@ -242,7 +243,6 @@ DropdownMenuShortcut.displayName = "DropdownMenuShortcut"
 
 export {
   DropdownMenu,
-  DropdownMenuWithState as DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
