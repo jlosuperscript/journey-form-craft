@@ -5,7 +5,49 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Dialog = DialogPrimitive.Root
+// Enhanced Dialog component with better lifecycle management
+const Dialog = ({ open, onOpenChange, ...props }: DialogPrimitive.DialogProps) => {
+  // Internal state for tracking actual open state with delay for transitions
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  
+  // Sync internal state with external open prop
+  React.useEffect(() => {
+    if (open) {
+      // Add small delay before opening to ensure any previous UI elements are fully closed
+      const timer = setTimeout(() => {
+        setInternalOpen(true);
+      }, 150);
+      return () => clearTimeout(timer);
+    } else {
+      // Add small delay before actually closing
+      const timer = setTimeout(() => {
+        setInternalOpen(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  // Handle actual open state changes with proper timing
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      // When closing, add delay before notifying parent
+      setTimeout(() => {
+        if (onOpenChange) onOpenChange(false);
+      }, 250);
+    } else {
+      // When opening, notify parent immediately
+      if (onOpenChange) onOpenChange(true);
+    }
+  };
+
+  return (
+    <DialogPrimitive.Root 
+      open={internalOpen} 
+      onOpenChange={handleOpenChange}
+      {...props}
+    />
+  );
+};
 
 const DialogTrigger = DialogPrimitive.Trigger
 
@@ -20,7 +62,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -33,15 +75,21 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
   // Create a ref to track mounted state
-  const isMountedRef = React.useRef(true)
+  const isMountedRef = React.useRef(false)
   
   React.useEffect(() => {
-    // Set to true when mounted
-    isMountedRef.current = true
+    // Add delay to ensure proper mounting
+    const timer = setTimeout(() => {
+      isMountedRef.current = true
+    }, 50);
     
-    // Set to false when unmounted
+    // Set to false when unmounted with delay
     return () => {
-      isMountedRef.current = false
+      clearTimeout(timer);
+      // Add delay to ensure proper unmounting sequence
+      setTimeout(() => {
+        isMountedRef.current = false
+      }, 100);
     }
   }, [])
   

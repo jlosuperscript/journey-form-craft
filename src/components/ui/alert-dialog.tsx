@@ -1,10 +1,53 @@
+
 import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
-const AlertDialog = AlertDialogPrimitive.Root
+// Enhanced AlertDialog with better transition handling
+const AlertDialog = ({ open, onOpenChange, ...props }: AlertDialogPrimitive.AlertDialogProps) => {
+  // Internal state for tracking actual open state
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  
+  // Sync internal state with external open prop with delay
+  React.useEffect(() => {
+    if (open) {
+      // Delay opening to ensure previous UI transitions complete
+      const timer = setTimeout(() => {
+        setInternalOpen(true);
+      }, 200);
+      return () => clearTimeout(timer);
+    } else {
+      // Delay closing for animation
+      const timer = setTimeout(() => {
+        setInternalOpen(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  // Handle open state changes with timing delay
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      // When closing, delay before notifying parent
+      setTimeout(() => {
+        if (onOpenChange) onOpenChange(false);
+      }, 300);
+    } else {
+      // When opening, notify parent immediately
+      if (onOpenChange) onOpenChange(true);
+    }
+  };
+
+  return (
+    <AlertDialogPrimitive.Root 
+      open={internalOpen} 
+      onOpenChange={handleOpenChange}
+      {...props} 
+    />
+  );
+};
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger
 
@@ -30,15 +73,21 @@ const AlertDialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
 >(({ className, ...props }, ref) => {
   // Create a ref to track if component is mounted
-  const isMountedRef = React.useRef(true)
+  const isMountedRef = React.useRef(false)
   
   React.useEffect(() => {
-    // Set flag to true when mounted
-    isMountedRef.current = true
+    // Set flag to true when mounted with delay for DOM readiness
+    const timer = setTimeout(() => {
+      isMountedRef.current = true
+    }, 50)
     
-    // Cleanup function that runs when unmounted
+    // Cleanup function that runs when unmounted with delay
     return () => {
-      isMountedRef.current = false
+      clearTimeout(timer)
+      // Add small delay to ensure proper cleanup sequence
+      setTimeout(() => {
+        isMountedRef.current = false
+      }, 100)
     }
   }, [])
   

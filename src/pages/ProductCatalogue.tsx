@@ -12,16 +12,16 @@ const ProductCatalogue: React.FC = () => {
   const [isCreateSectionDialogOpen, setIsCreateSectionDialogOpen] = useState(false);
   const { sections, fetchQuestions } = useQuestions();
 
-  // Add delay to opening dialogs to ensure proper timing
+  // Improve dialog opening with better timing
   const handleOpenDialog = (dialogType: 'question' | 'section') => {
-    // Add a small delay before opening to ensure any previous modal is closed
+    // Add a longer delay to ensure any previous UI elements are fully closed
     setTimeout(() => {
       if (dialogType === 'question') {
         setIsCreateDialogOpen(true);
       } else {
         setIsCreateSectionDialogOpen(true);
       }
-    }, 10);
+    }, 300); // Increased from 10ms to 300ms to ensure complete transition
   };
 
   const handleQuestionCreated = () => {

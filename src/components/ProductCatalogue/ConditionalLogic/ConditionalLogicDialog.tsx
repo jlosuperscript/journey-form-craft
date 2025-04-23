@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,13 +12,14 @@ import BannerMessageField from './BannerMessageField';
 import LogicConditionForm from './LogicConditionForm';
 import ExistingLogicList from './ExistingLogicList';
 
-import { ConditionalLogicDialogProps, EntityType } from './types';
 import { 
-  getEntityName, 
+  ConditionalLogicDialogProps, 
+  EntityType,
   saveLogicToSupabase, 
   deleteLogicFromSupabase,
   updateBannerMessageInSupabase,
-  createDummyLogicForBanner
+  createDummyLogicForBanner,
+  getEntityName
 } from './utils';
 
 const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
@@ -31,6 +32,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   existingLogic,
   onLogicUpdated
 }) => {
+  // State management
   const [selectedDependentQuestion, setSelectedDependentQuestion] = useState('');
   const [selectedAnswerValue, setSelectedAnswerValue] = useState('');
   const [conditionType, setConditionType] = useState<'is' | 'is_not'>('is');
@@ -40,24 +42,52 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isAddingCondition, setIsAddingCondition] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [dialogInternal, setDialogInternal] = useState(open);
   
-  // Use effect to synchronize the internal state with the external open prop
+  // Dialog internal state with proper transition timing
+  const [dialogInternal, setDialogInternal] = useState(open);
+  const dialogTransitioningRef = useRef(false);
+  
+  // Sync internal state with external open prop
   useEffect(() => {
     if (open) {
-      setDialogInternal(true);
+      // Add delay before actually opening dialog
+      const timer = setTimeout(() => {
+        setDialogInternal(true);
+        dialogTransitioningRef.current = false;
+      }, 250); // Ensure any other UI elements have completed transitions
+      return () => clearTimeout(timer);
+    } else if (open === false) {
+      // Mark as transitioning
+      dialogTransitioningRef.current = true;
+      // Add delay before closing
+      const timer = setTimeout(() => {
+        setDialogInternal(false);
+      }, 150);
+      return () => clearTimeout(timer);
     }
   }, [open]);
   
-  // Handle dialog close with cleanup timeout
+  // Handle dialog close with improved timing
   const handleDialogClose = () => {
-    setDialogInternal(false);
-    // Add timeout to ensure dialog is fully closed before updating parent state
+    // Prevent rapid open/close cycles
+    if (dialogTransitioningRef.current) return;
+    
+    // Mark as transitioning
+    dialogTransitioningRef.current = true;
+    
+    // Add initial delay before starting close animation
     setTimeout(() => {
-      onOpenChange(false);
-    }, 300); // Adjust timing to match animation duration
+      setDialogInternal(false);
+      
+      // Add another delay to ensure dialog is fully closed before updating parent state
+      setTimeout(() => {
+        dialogTransitioningRef.current = false;
+        onOpenChange(false);
+      }, 350); // Adjust timing to match or exceed animation duration
+    }, 100);
   };
 
+  // Initialize available questions and banner message
   useEffect(() => {
     const filteredQuestions = questions.filter(q => (
       (entityType === 'section' || q.id !== (entity as Question).id) && 
@@ -76,6 +106,8 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     }
   }, [entity, questions, entityType, existingLogic]);
 
+  // Add logic condition with debounce to prevent double submission
+  const isAddingRef = useRef(false);
   const handleAddLogic = async (
     dependentQuestionId: string,
     answerValue: string,
@@ -85,6 +117,10 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       toast.error('Please select a question and answer value');
       return;
     }
+    
+    // Prevent double submission
+    if (isAddingRef.current) return;
+    isAddingRef.current = true;
     
     try {
       await saveLogicToSupabase(
@@ -101,10 +137,21 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     } catch (error) {
       toast.error('Failed to add conditional logic');
       console.error(error);
+    } finally {
+      // Reset submission lock with delay
+      setTimeout(() => {
+        isAddingRef.current = false;
+      }, 500);
     }
   };
 
+  // Delete logic with debounce
+  const isDeletingRef = useRef(false);
   const handleDeleteLogic = async (logicId: string) => {
+    // Prevent double deletion
+    if (isDeletingRef.current) return;
+    isDeletingRef.current = true;
+    
     try {
       await deleteLogicFromSupabase(logicId);
       toast.success('Conditional logic removed');
@@ -112,9 +159,15 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     } catch (error) {
       toast.error('Failed to delete conditional logic');
       console.error(error);
+    } finally {
+      // Reset deletion lock with delay
+      setTimeout(() => {
+        isDeletingRef.current = false;
+      }, 500);
     }
   };
 
+  // Save changes with improved error handling
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
@@ -134,8 +187,14 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
       setCurrentBannerMessage(bannerMessage);
       setHasUnsavedChanges(false);
       toast.success('Changes saved successfully');
-      onLogicUpdated();
-      handleDialogClose();
+      
+      // Update logic with delay to ensure proper UI refresh
+      setTimeout(() => {
+        onLogicUpdated();
+        
+        // Close dialog with proper timing
+        handleDialogClose();
+      }, 300);
     } catch (error) {
       console.error('Error saving changes:', error);
       toast.error('Failed to save changes');
@@ -144,6 +203,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     }
   };
 
+  // Reset all form state
   const resetAllChanges = () => {
     setSelectedDependentQuestion('');
     setSelectedAnswerValue('');
@@ -153,6 +213,7 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     setIsAddingCondition(false);
   };
 
+  // Track unsaved changes
   useEffect(() => {
     if (bannerMessage !== currentBannerMessage) {
       setHasUnsavedChanges(true);
@@ -161,16 +222,20 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
     }
   }, [bannerMessage, currentBannerMessage]);
 
+  // Handle dialog open state changes with unsaved changes check
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen && hasUnsavedChanges) {
-      if (confirm("You have unsaved changes. Are you sure you want to close?")) {
+      if (window.confirm("You have unsaved changes. Are you sure you want to close?")) {
         handleDialogClose();
       }
     } else if (!newOpen) {
       handleDialogClose();
     } else {
-      setDialogInternal(true);
-      onOpenChange(true);
+      // When opening, sync internal state with delay for transitions
+      setTimeout(() => {
+        setDialogInternal(true);
+        onOpenChange(true);
+      }, 100);
     }
   };
 

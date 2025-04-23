@@ -1,11 +1,9 @@
-
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-// Original primitive component (not exported directly)
 const DropdownMenuRoot = DropdownMenuPrimitive.Root
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
@@ -17,6 +15,118 @@ const DropdownMenuPortal = DropdownMenuPrimitive.Portal
 const DropdownMenuSub = DropdownMenuPrimitive.Sub
 
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup
+
+// Improved DropdownMenu component with better transition management
+const DropdownMenu = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root> & {
+    children: React.ReactNode | ((props: {
+      open: boolean;
+      setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+      preventClose: () => void;
+    }) => React.ReactNode)
+  }
+>(({ children, open: externalOpen, onOpenChange: externalOnOpenChange, ...props }, _ref) => {
+  // Internal state management
+  const [open, setOpen] = React.useState(false)
+  const preventCloseRef = React.useRef(false)
+  const closeInProgressRef = React.useRef(false)
+  
+  // Flag to prevent interaction during transitions
+  const [isTransitioning, setIsTransitioning] = React.useState(false)
+  
+  // Sync with external open state if provided
+  React.useEffect(() => {
+    if (externalOpen !== undefined) {
+      setOpen(externalOpen)
+    }
+  }, [externalOpen])
+  
+  // Track when menu has fully closed to prevent interaction issues
+  React.useEffect(() => {
+    if (!open) {
+      // Mark as transitioning
+      setIsTransitioning(true)
+      
+      // Add a delay to match animation duration
+      const timer = setTimeout(() => {
+        setIsTransitioning(false)
+        closeInProgressRef.current = false
+      }, 300) // Animation duration + buffer
+      return () => clearTimeout(timer)
+    }
+  }, [open])
+
+  // Handle open state changes
+  const handleOpenChange = React.useCallback((nextOpen: boolean) => {
+    // Block open changes during transitions
+    if (isTransitioning) return
+    
+    // If prevent close flag is set, reset it and block this close
+    if (!nextOpen && preventCloseRef.current) {
+      preventCloseRef.current = false
+      return
+    }
+    
+    // Prevent rapid open/close cycles
+    if (!nextOpen && closeInProgressRef.current) {
+      return
+    }
+    
+    // If closing, mark as in progress and schedule with delay
+    if (!nextOpen && open) {
+      closeInProgressRef.current = true
+      setTimeout(() => {
+        setOpen(false)
+        // Notify external handler if provided
+        if (externalOnOpenChange) {
+          externalOnOpenChange(false)
+        }
+      }, 50)
+    } else {
+      setOpen(nextOpen)
+      // Notify external handler if provided
+      if (externalOnOpenChange) {
+        externalOnOpenChange(nextOpen)
+      }
+    }
+  }, [open, isTransitioning, externalOnOpenChange])
+
+  return (
+    <DropdownMenuRoot
+      open={open}
+      onOpenChange={handleOpenChange}
+      {...props}
+    >
+      {typeof children === 'function' 
+        ? children({ 
+            open, 
+            setOpen: (newOpen) => {
+              // Add delay when closing to ensure animation completes
+              if (open && !newOpen) {
+                setIsTransitioning(true)
+                setTimeout(() => {
+                  setOpen(newOpen)
+                  // Notify external handler if provided
+                  if (externalOnOpenChange) {
+                    externalOnOpenChange(newOpen)
+                  }
+                }, 100)
+              } else {
+                setOpen(newOpen)
+                // Notify external handler if provided
+                if (externalOnOpenChange) {
+                  externalOnOpenChange(newOpen)
+                }
+              }
+            }, 
+            preventClose: () => { preventCloseRef.current = true } 
+          }) 
+        : children}
+    </DropdownMenuRoot>
+  )
+})
+DropdownMenu.displayName = "DropdownMenu"
 
 const DropdownMenuSubTrigger = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.SubTrigger>,
@@ -60,21 +170,37 @@ const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
 >(({ className, sideOffset = 4, ...props }, ref) => {
-  // Create a ref to track if component is mounted
-  const isMountedRef = React.useRef(true)
+  // Create a ref to track component lifecycle
+  const isMountedRef = React.useRef(false)
+  const isClosingRef = React.useRef(false)
   
   React.useEffect(() => {
-    // Set flag to true when mounted
-    isMountedRef.current = true
+    // Delay setting mounted to ensure DOM is ready
+    const mountTimer = setTimeout(() => {
+      isMountedRef.current = true
+    }, 50)
     
-    // Cleanup function that runs when unmounted
+    // Cleanup function with better timing
     return () => {
-      // Add small delay to ensure other cleanup operations complete first
+      clearTimeout(mountTimer)
+      
+      // Set closing state first
+      isClosingRef.current = true
+      
+      // Then after animation duration, set mounted to false
       setTimeout(() => {
         isMountedRef.current = false
-      }, 10)
+        isClosingRef.current = false
+      }, 300) // Longer than animation to ensure completion
     }
   }, [])
+  
+  // Handler to check lifecycle state
+  const handleOutsideInteraction = (event: Event) => {
+    if (!isMountedRef.current || isClosingRef.current) {
+      event.preventDefault()
+    }
+  }
   
   return (
     <DropdownMenuPrimitive.Portal>
@@ -85,86 +211,16 @@ const DropdownMenuContent = React.forwardRef<
           "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
           className
         )}
-        onEscapeKeyDown={(event) => {
-          if (!isMountedRef.current) event.preventDefault()
-        }}
-        onPointerDownOutside={(event) => {
-          if (!isMountedRef.current) event.preventDefault()
-        }}
-        onFocusOutside={(event) => {
-          if (!isMountedRef.current) event.preventDefault()
-        }}
-        onInteractOutside={(event) => {
-          if (!isMountedRef.current) event.preventDefault()
-        }}
+        onEscapeKeyDown={handleOutsideInteraction}
+        onPointerDownOutside={handleOutsideInteraction}
+        onFocusOutside={handleOutsideInteraction}
+        onInteractOutside={handleOutsideInteraction}
         {...props}
       />
     </DropdownMenuPrimitive.Portal>
   )
 })
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
-
-// Custom wrapper that manages state - this will be our exported DropdownMenu
-const DropdownMenu = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root> & {
-    children: React.ReactNode | ((props: {
-      open: boolean;
-      setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-      preventClose: () => void;
-    }) => React.ReactNode)
-  }
->(({ children, ...props }, _ref) => {
-  const [open, setOpen] = React.useState(false)
-  const preventCloseRef = React.useRef(false)
-  
-  // Track when menu has actually closed to prevent interaction issues
-  const [fullyTransitioned, setFullyTransitioned] = React.useState(true)
-  
-  // Handle state transition with proper timing
-  React.useEffect(() => {
-    if (!open) {
-      // Add a delay to match animation duration before marking as fully closed
-      const timer = setTimeout(() => {
-        setFullyTransitioned(true)
-      }, 250) // Animation duration from Tailwind classes
-      return () => clearTimeout(timer)
-    } else {
-      setFullyTransitioned(false)
-    }
-  }, [open])
-
-  return (
-    <DropdownMenuRoot
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (preventCloseRef.current) {
-          preventCloseRef.current = false
-          return
-        }
-        
-        // If closing, schedule the state change
-        if (!nextOpen && open) {
-          setTimeout(() => {
-            setOpen(false)
-          }, 10)
-        } else {
-          setOpen(nextOpen)
-        }
-      }}
-      {...props}
-    >
-      {typeof children === 'function' 
-        ? children({ 
-            open, 
-            setOpen, 
-            preventClose: () => { preventCloseRef.current = true } 
-          }) 
-        : children}
-    </DropdownMenuRoot>
-  )
-})
-DropdownMenu.displayName = "DropdownMenu"
 
 const DropdownMenuItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Item>,
@@ -226,7 +282,7 @@ const DropdownMenuRadioItem = React.forwardRef<
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}
-  </DropdownMenuPrimitive.RadioItem>
+  </DropdownMenuRadioItem>
 ))
 DropdownMenuRadioItem.displayName = DropdownMenuPrimitive.RadioItem.displayName
 
