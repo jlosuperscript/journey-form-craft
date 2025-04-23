@@ -1,34 +1,11 @@
+
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const DropdownMenu = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>
->(({ children, ...props }, ref) => {
-  const [open, setOpen] = React.useState(false)
-  const preventCloseRef = React.useRef(false)
-
-  return (
-    <DropdownMenuPrimitive.Root
-      ref={ref}
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (preventCloseRef.current) {
-          preventCloseRef.current = false
-          return
-        }
-        setOpen(nextOpen)
-      }}
-      {...props}
-    >
-      {typeof children === 'function' ? children({ open, setOpen, preventClose: () => { preventCloseRef.current = true } }) : children}
-    </DropdownMenuPrimitive.Root>
-  )
-})
-DropdownMenu.displayName = "DropdownMenu"
+const DropdownMenu = DropdownMenuPrimitive.Root
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
 
@@ -117,6 +94,44 @@ const DropdownMenuContent = React.forwardRef<
   )
 })
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
+
+// Custom wrapper that manages state
+const DropdownMenuWithState = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root> & {
+    children: React.ReactNode | ((props: {
+      open: boolean;
+      setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+      preventClose: () => void;
+    }) => React.ReactNode)
+  }
+>(({ children, ...props }, _ref) => {
+  const [open, setOpen] = React.useState(false)
+  const preventCloseRef = React.useRef(false)
+
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (preventCloseRef.current) {
+          preventCloseRef.current = false
+          return
+        }
+        setOpen(nextOpen)
+      }}
+      {...props}
+    >
+      {typeof children === 'function' 
+        ? children({ 
+            open, 
+            setOpen, 
+            preventClose: () => { preventCloseRef.current = true } 
+          }) 
+        : children}
+    </DropdownMenu>
+  )
+})
+DropdownMenuWithState.displayName = "DropdownMenuWithState"
 
 const DropdownMenuItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Item>,
@@ -227,6 +242,7 @@ DropdownMenuShortcut.displayName = "DropdownMenuShortcut"
 
 export {
   DropdownMenu,
+  DropdownMenuWithState as DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
