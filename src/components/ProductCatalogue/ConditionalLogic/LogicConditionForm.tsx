@@ -4,6 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Question } from "@/hooks/useQuestions";
 import { getAnswerOptionsForQuestion } from "./utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 type LogicConditionFormProps = {
   questions: Question[];
@@ -11,7 +13,8 @@ type LogicConditionFormProps = {
   onAddLogic: (
     dependentQuestionId: string,
     answerValue: string,
-    conditionType: "is" | "is_not"
+    conditionType: "is" | "is_not",
+    checkAnswerExistence?: boolean
   ) => Promise<void>;
   onCancel: () => void;
 };
@@ -25,18 +28,20 @@ const LogicConditionForm: React.FC<LogicConditionFormProps> = ({
   const [selectedDependentQuestion, setSelectedDependentQuestion] = useState('');
   const [selectedAnswerValue, setSelectedAnswerValue] = useState('');
   const [conditionType, setConditionType] = useState<'is' | 'is_not'>('is');
+  const [checkAnswerExistence, setCheckAnswerExistence] = useState(false);
 
   const handleAddLogic = async () => {
-    if (!selectedDependentQuestion || !selectedAnswerValue) {
-      return;
+    if (!selectedDependentQuestion) return;
+    
+    // If we're checking existence, we don't need an answer value
+    if (checkAnswerExistence || (selectedAnswerValue && !checkAnswerExistence)) {
+      await onAddLogic(
+        selectedDependentQuestion, 
+        checkAnswerExistence ? "__EXISTS__" : selectedAnswerValue, 
+        conditionType,
+        checkAnswerExistence
+      );
     }
-    
-    await onAddLogic(selectedDependentQuestion, selectedAnswerValue, conditionType);
-    
-    // Reset form
-    setSelectedDependentQuestion('');
-    setSelectedAnswerValue('');
-    setConditionType('is');
   };
 
   return (
@@ -68,6 +73,20 @@ const LogicConditionForm: React.FC<LogicConditionFormProps> = ({
 
         {selectedDependentQuestion && (
           <>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="check-existence" 
+                checked={checkAnswerExistence} 
+                onCheckedChange={(checked) => {
+                  setCheckAnswerExistence(checked === true);
+                  if (checked) setSelectedAnswerValue('');
+                }}
+              />
+              <Label htmlFor="check-existence">
+                Check if question has been answered (instead of checking specific answer)
+              </Label>
+            </div>
+
             <div>
               <label className="block mb-2 text-sm">Condition</label>
               <Select
@@ -78,34 +97,41 @@ const LogicConditionForm: React.FC<LogicConditionFormProps> = ({
                   <SelectValue placeholder="Select condition type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="is">is</SelectItem>
-                  <SelectItem value="is_not">is not</SelectItem>
+                  <SelectItem value="is">
+                    {checkAnswerExistence ? 'has been answered' : 'is'}
+                  </SelectItem>
+                  <SelectItem value="is_not">
+                    {checkAnswerExistence ? 'has not been answered' : 'is not'}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div>
-              <label className="block mb-2 text-sm">Answer Value</label>
-              <Select
-                value={selectedAnswerValue}
-                onValueChange={setSelectedAnswerValue}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select an answer value" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getAnswerOptionsForQuestion(
-                    selectedDependentQuestion,
-                    questions,
-                    answerOptions
-                  ).map((option) => (
-                    <SelectItem key={option.id} value={option.value}>
-                      {option.text}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!checkAnswerExistence && (
+              <div>
+                <label className="block mb-2 text-sm">Answer Value</label>
+                <Select
+                  value={selectedAnswerValue}
+                  onValueChange={setSelectedAnswerValue}
+                  disabled={checkAnswerExistence}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an answer value" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAnswerOptionsForQuestion(
+                      selectedDependentQuestion,
+                      questions,
+                      answerOptions
+                    ).map((option) => (
+                      <SelectItem key={option.id} value={option.value}>
+                        {option.text}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </>
         )}
 
@@ -115,7 +141,7 @@ const LogicConditionForm: React.FC<LogicConditionFormProps> = ({
           </Button>
           <Button 
             onClick={handleAddLogic}
-            disabled={!selectedDependentQuestion || !selectedAnswerValue}
+            disabled={!selectedDependentQuestion || (!selectedAnswerValue && !checkAnswerExistence)}
           >
             Add Condition
           </Button>

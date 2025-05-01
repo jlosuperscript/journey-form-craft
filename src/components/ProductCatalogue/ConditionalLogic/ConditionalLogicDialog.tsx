@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -111,10 +110,16 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
   const handleAddLogic = async (
     dependentQuestionId: string,
     answerValue: string,
-    conditionType: 'is' | 'is_not'
+    conditionType: 'is' | 'is_not',
+    checkAnswerExistence: boolean = false
   ) => {
-    if (!dependentQuestionId || !answerValue) {
-      toast.error('Please select a question and answer value');
+    if (!dependentQuestionId) {
+      toast.error('Please select a question');
+      return;
+    }
+    
+    if (!answerValue && !checkAnswerExistence) {
+      toast.error('Please select an answer value or check existence option');
       return;
     }
     
@@ -128,7 +133,9 @@ const ConditionalLogicDialog: React.FC<ConditionalLogicDialogProps> = ({
         entityType === 'question' ? (entity as Question).id : (entity as any).id,
         dependentQuestionId,
         answerValue,
-        conditionType === 'is_not'
+        conditionType === 'is_not',
+        null,
+        checkAnswerExistence
       );
       
       toast.success('Conditional logic added successfully');

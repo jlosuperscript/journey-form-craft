@@ -1,3 +1,4 @@
+
 import { Question, Section } from "@/hooks/useQuestions";
 import { AnswerOption } from "@/hooks/useQuestions";
 import { v4 as uuidv4 } from "uuid";
@@ -55,7 +56,8 @@ export const saveLogicToSupabase = async (
   dependentQuestionId: string,
   dependentAnswerValue: string,
   notCondition: boolean,
-  bannerMessage: string | null = null
+  bannerMessage: string | null = null,
+  checkAnswerExistence: boolean = false
 ) => {
   const logicPayload = {
     id: uuidv4(),
@@ -64,6 +66,7 @@ export const saveLogicToSupabase = async (
     dependent_answer_value: dependentAnswerValue,
     not_condition: notCondition,
     banner_message: bannerMessage,
+    check_answer_existence: checkAnswerExistence,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     question_id: entityType === "question" ? entityId : null,

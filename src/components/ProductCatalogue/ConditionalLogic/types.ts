@@ -11,6 +11,7 @@ export type ConditionalLogic = {
   not_condition?: boolean;
   dependent_question?: Question;
   banner_message?: string;
+  check_answer_existence?: boolean; // New field to check if question is answered
 };
 
 export type EntityType = 'question' | 'section';
